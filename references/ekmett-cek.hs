@@ -3,13 +3,13 @@
 
 {- repl test recap:
 
-input                                                  output
-step (start id_)                                       State (Lam "x" (Var "x")) Env Top
-step (start (Ap id_ id_))                              State (Lam "x" (Var "x")) Env (Arg (Lam "x" (Var "x")) Env Top)
-step (step (start (Ap id_ id_)))                       State (Lam "x" (Var "x")) Env (Fun "x" (Var "x") Env Top)
-step (step (step (start (Ap id_ id_))))                State (Var "x") Env Top
-step (step (step (step (start (Ap id_ id_)))))         State (Lam "x" (Var "x")) Env Top
-step (step (step (step (step (start (Ap id_ id_))))))  State (Lam "x" (Var "x")) Env Top -}
+input                                                  State Exp Env Kont
+step (start id_)                                       State  (Lam "x" (Var "x"))  Env Top
+step (start (Ap id_ id_))                              State  (Lam "x" (Var "x"))  Env (Arg (Lam "x" (Var "x")) Env Top)
+step (step (start (Ap id_ id_)))                       State  (Lam "x" (Var "x"))  Env (Fun "x" (Var "x") Env Top)
+step (step (step (start (Ap id_ id_))))                State  (Var "x")            Env Top
+step (step (step (step (start (Ap id_ id_)))))         State  (Lam "x" (Var "x"))  Env Top
+step (step (step (step (step (start (Ap id_ id_))))))  State  (Lam "x" (Var "x"))  Env Top -}
 
 {-# language StrictData #-}
 module CEK where

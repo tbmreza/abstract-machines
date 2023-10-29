@@ -5,13 +5,17 @@ module Lib where
 
 -- LANGUAGE: A-NORMAL FORM
 
-data AExp = ALambda Lambda | AVar Var | ABool Bool | AInt Int
+data AExp = ALambda Lambda | AVar Var | ABool Bool | AInt Int | APrimAppl Prim [AExp]
+data Prim = Add | Sub | Mul | Eq
 
 instance Show AExp where
         show (ALambda d) = show d
         show (AVar d) = show d
         show (ABool d) = if d then "#t" else "#f"
         show (AInt d) = show d
+        show a@(APrimAppl _ d) = show $ atomic (a, defaultEnv, defaultStore)
+
+        show _ = "AExp todo.."
         -- `show (_ d) = show d` if I could but
         -- wildcard in data constructor's place is not allowed.
 
@@ -29,7 +33,7 @@ data Exp = Atomic   AExp
 
 instance Show Exp where
         show (Atomic d) = show d
-        show _ = "todo"
+        show _ = "Exp todo"
 
 defaultExp = Atomic $ AInt 0
 
@@ -58,7 +62,7 @@ data Kont = Letk Var Exp Env Kont | Halt
 
 data Value = Undefined | ValueVoid | ValueZ Int | ValueTrue | ValueFalse
            | ValueKont Kont | ValueClo (Lambda, Env) | ValueCloM (MLambda, Env)
-        -- deriving (Eq, Show)
+        -- ?? instance Show, some in AExp maybe redundant
         deriving Show
 type Addr = Int
 
@@ -92,6 +96,7 @@ readKont ((Letk v e r k), value, t)
                 _          -> freshAddr $ succ addr
 
 type Env = Var -> Addr
+defaultEnv :: Env
 defaultEnv _ = error "Addr undefined in Env for input Var"
 
 instance Show Env where show _ = "Env"
@@ -100,8 +105,28 @@ atomic :: (AExp, Env, Store) -> Value
 atomic (AVar v, r, t)     = t $ r v
 atomic (AInt z, _, _)     = ValueZ z
 atomic (ABool b, _, _)    = if b then ValueTrue else ValueFalse
--- atomic (ALambda l, r, _)  = ValueClo (l, r)  ?? MLambda
+
+atomic (APrimAppl op aexps, r, t) = ValueZ z where
+        fnadd :: AExp -> AExp -> AExp  -- ?? template haskell?
+        fnadd a b = AInt new where
+                [AInt acc, AInt arg] = [a, b]
+                new = acc + arg
+        fnsub a b = AInt new where
+                [AInt acc, AInt arg] = [a, b]
+                new = acc - arg
+
+        -- Map primitive (prefix) ops to host language's (infix) ops.
+        AInt z = case op of
+                Add -> foldl fnadd (head aexps) (tail aexps)
+                Sub -> foldl fnsub (head aexps) (tail aexps)
+                -- ??
+
 atomic _     = ValueVoid
+-- atomic (ALambda l, r, _)  = ValueClo (l, r)  ?? MLambda
+
+-- test ok: atomic a1
+-- a1 = (APrimAppl Add [AInt 2, AInt 3], defaultEnv, defaultStore)
+-- a2 = (APrimAppl Sub [AInt 7, AInt 1], defaultEnv, defaultStore)
 
 step :: S -> S
 
@@ -193,6 +218,9 @@ isFinal _ = False
 -- TESTING
 
 s0 = inject (Atomic (ABool False))
-rez = stateControl s0
 -- ghci> stateControl $ eval s0
 -- #f
+
+s1 = inject (Atomic (APrimAppl Add [AInt 2, AInt 13]))
+-- ghci> stateControl $ eval s1
+-- ValueZ 15

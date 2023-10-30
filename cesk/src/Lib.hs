@@ -9,8 +9,7 @@ data AExp = ALambda Lambda | AVar Var
           | ABool Bool | AInt Int
           | APrimAppl Prim [AExp]
         -- deriving Show
-data Prim = Add | Sub | Mul | Eq
-        deriving Show
+data Prim = Add | Sub | Mul | Eq deriving Show
 
 instance Show AExp where
         show (ALambda d) = show d
@@ -172,21 +171,12 @@ step (Complex (Proc aexps), r, t, k)
 step (Complex (Letrec binds body), r, t, k)
    = (body, r', t', k)
    where
-        addrs :: [Addr]
         addrs = alloc (length binds) t
+        r' = foldl rExtend r $ zip (map bindFst binds) addrs
 
-        envs :: [(Var, Addr)]
-        envs    = zip (map bindFst binds) addrs
-        r' = foldl rExtend r envs
-
-        stores :: [(Addr, Value)]
-        ai :: AExp -> Value
-        ai arg = atomic (arg, r', t)
-        -- bindSndAsValue :: Bind -> Value  -- ?? nested map
-        -- bindSndAsValue = bindValue where 
-
-        stores  = zip addrs (map ai (map bindSnd binds))
-        t' = foldl tExtend t stores
+        evalSnd :: Bind -> Value
+        evalSnd b = atomic (bindSnd b, r', t)
+        t' = foldl tExtend t $ zip addrs (map evalSnd binds)
 
 step (Complex (Callcc aexp), r, t, k)
    = applyproc (closure, [ValueKont k], t, k)
@@ -253,4 +243,17 @@ s5 = injectWith r5 t5 (Atomic $ AVar "b") where
         t5 12 = ValueZ 6
 -- 6
 
-testAll = map stateControl (map eval [s0, s1, s2, s3, s4, s5])
+s6 = inject (Complex (Set "b" $ AInt 16))  -- ?? test in isolation without letrec
+
+-- PICKUP
+-- (check-eq? 6 (church->nat (church-compile
+-- '(letrec ([len (lambda (lst)
+--                  (if (null? lst)
+--                      0
+--                      (add1 (len (cdr lst)))))])
+--    (len (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons '() '())))))))))))
+
+s7 = inject (Complex (Letrec ["lr" := (AInt 31)]
+                             (Atomic $ AVar "lr")))  -- 31 ok
+
+testAll = map stateControl (map eval [s0, s1, s2, s3, s4, s5, s7])

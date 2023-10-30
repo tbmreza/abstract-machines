@@ -9,7 +9,7 @@ data AExp = ALambda Lambda | AVar Var
           | ABool Bool | AInt Int
           | APrimAppl Prim [AExp]
         -- deriving Show
-data Prim = Add | Sub | Mul | Eq deriving Show
+data Prim = Add | Sub | Mul | Eql deriving Show
 
 instance Show AExp where
         show (ALambda d) = show d
@@ -26,8 +26,11 @@ data Value = Undefined | ValueVoid | ValueZ Int | ValueTrue | ValueFalse
            | ValueKont Kont | ValueClo (Lambda, Env)
         -- deriving Show -- ??
 instance Show Value where
-        show Undefined = show Undefined
+        show Undefined = "Undefined"
+        show ValueVoid = "void"
         show (ValueZ d) = show d
+        show ValueTrue = "#t"
+        show ValueFalse = "#f"
         show _ = "Value"
 
 data CExp = If      AExp Exp Exp
@@ -66,14 +69,13 @@ type Store = Addr -> Value
 instance Show Store where show _ = "Store"
 defaultStore :: Store
 defaultStore _ = Undefined
--- defaultStore _ = error "Value undefined in Store for input Addr"  -- ?? is Undefined ok
 
 data Kont = Letk Var Exp Env Kont | Halt
         deriving Show
 
 type Addr = Int
 
--- Env and Store ?? typeclass
+-- Env and Store typeclass
 -- "as tuple" syntax.
 (==>) :: a -> b -> (a, b)
 (==>) x y = (x, y)
@@ -104,7 +106,7 @@ readkont (Halt, value, _) = (Atomic ae, defaultEnv, defaultStore, Halt) where
                 ValueZ d -> AInt d
                 ValueTrue -> ABool True
                 ValueFalse -> ABool False
-                _ -> AInt 0  -- ??
+                _ -> error "no more continuations but value isn't terminal"
 
 readkont ((Letk v e r k), value, t) = (e, r // [v ==> a], t // [a ==> value], k) where
         a = freshAddr 0
@@ -124,27 +126,38 @@ atomic (AVar v, r, t) = t $ r v
 atomic (AInt z, _, _) = ValueZ z
 atomic (ABool b, _, _) = if b then ValueTrue else ValueFalse
 
-atomic (APrimAppl op aexps, r, t) = ValueZ z where
-        fnadd :: AExp -> AExp -> AExp  -- ?? template haskell?
-        fnadd a b = AInt new where
-                [AInt acc, AInt arg] = [a, b]
-                new = acc + arg
-        fnsub a b = AInt new where
-                [AInt acc, AInt arg] = [a, b]
-                new = acc - arg
-        fnmul a b = AInt new where
-                [AInt acc, AInt arg] = [a, b]
-                new = acc * arg
-
+atomic (APrimAppl op aexps, r, t) = value where
         -- Map primitive (prefix) ops to host language's (infix) ops.
-        AInt z = case op of
-                Add -> foldl fnadd (head aexps) (tail aexps)
-                Sub -> foldl fnsub (head aexps) (tail aexps)
-                Mul -> foldl fnmul (head aexps) (tail aexps)
-                -- ??
+        fnadd :: AExp -> AExp -> AExp  -- ?? template haskell?
+        fnadd a b = AInt acc where
+                [AInt va, AInt vb] = [a, b]
+                acc = va + vb
+        fnsub a b = AInt acc where
+                [AInt va, AInt vb] = [a, b]
+                acc = va - vb
+        fnmul a b = AInt acc where
+                [AInt va, AInt vb] = [a, b]
+                acc = va * vb
+        fneql a b = ABool acc where
+                [AInt va, AInt vb] = [a, b]
+                acc = va == vb
+
+        value = case op of
+                Add -> ValueZ d where AInt d = foldl fnadd (head aexps) (tail aexps)
+                Sub -> ValueZ d where AInt d = foldl fnsub (head aexps) (tail aexps)
+                Mul -> ValueZ d where AInt d = foldl fnmul (head aexps) (tail aexps)
+
+                Eql -> case foldl fneql (head aexps) (tail aexps) of
+                        ABool True -> ValueTrue
+                        ABool False -> ValueFalse
 
 atomic (ALambda l, r, _) = ValueClo (l, r)
 atomic _ = ValueVoid
+
+-- test ok:
+-- q1 = atomic (atmc, defaultEnv, defaultStore) where atmc = APrimAppl Add [(AInt 3), (AInt 3), (AInt 3)]
+-- q2 = atomic (atmc, defaultEnv, defaultStore) where atmc = APrimAppl Sub [(AInt 3), (AInt 3)]
+-- q3 = atomic (atmc, defaultEnv, defaultStore) where atmc = APrimAppl Eql [(AInt 13), (AInt 3)]
 
 step :: S -> S
 

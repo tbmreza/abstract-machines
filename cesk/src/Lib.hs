@@ -128,7 +128,7 @@ atomic (ABool b, _, _) = if b then ValueTrue else ValueFalse
 
 atomic (APrimAppl op aexps, r, t) = value where
         -- Map primitive (prefix) ops to host language's (infix) ops.
-        fnadd :: AExp -> AExp -> AExp  -- ?? template haskell?
+        fnadd :: AExp -> AExp -> AExp
         fnadd a b = AInt acc where
                 [AInt va, AInt vb] = [a, b]
                 acc = va + vb
@@ -153,11 +153,6 @@ atomic (APrimAppl op aexps, r, t) = value where
 
 atomic (ALambda l, r, _) = ValueClo (l, r)
 atomic _ = ValueVoid
-
--- test ok:
--- q1 = atomic (atmc, defaultEnv, defaultStore) where atmc = APrimAppl Add [(AInt 3), (AInt 3), (AInt 3)]
--- q2 = atomic (atmc, defaultEnv, defaultStore) where atmc = APrimAppl Sub [(AInt 3), (AInt 3)]
--- q3 = atomic (atmc, defaultEnv, defaultStore) where atmc = APrimAppl Eql [(AInt 13), (AInt 3)]
 
 step :: S -> S
 
@@ -233,40 +228,59 @@ isFinal _ = False
 
 
 -- TESTING
--- ghci> stateControl $ eval s
 
-s0 = inject (Atomic (ABool False))
--- #f
+s6 = inject (Complex (Set "b" $ AInt 16))  -- ?? can't test in isolation without letrec?
 
-s1 = inject (Atomic (APrimAppl Add [AInt 2, AInt 13]))
--- 15
+-- ??
+-- (letrec ([is-even? (lambda (n)
+--                        (or (zero? n)
+--                            (is-odd? (sub1 n))))]
+--            [is-odd? (lambda (n)
+--                       (and (not (zero? n))
+--                            (is-even? (sub1 n))))])
+--     (is-odd? 11))
 
-[s2, s3] = [
-        inject (Complex (If (ABool True) (Atomic $ AInt 3) (Atomic $ AInt 2))),
-        inject (Complex (If (ABool False) (Atomic $ AInt 3) (Atomic $ AInt 2))) ]
--- [3,2]
+type Expect = String
+cases :: [(Expect, S)]
+cases = [ {- display atomic -}
+          ("#f", inject (Atomic (ABool False)))
+        , ("12", inject (Atomic (AInt 12)))
 
-s4 = inject (Complex (Proc aexps)) where aexps = [ALambda ident, AInt 4]
--- 4
+          {- display prim op -}
+        , ("15",  inject (Atomic (APrimAppl Add [AInt 2, AInt 13])))
+        , ("-11", inject (Atomic (APrimAppl Sub [AInt 2, AInt 13])))
+        , ("26",  inject (Atomic (APrimAppl Mul [AInt 2, AInt 13])))
+        , ("#f",  inject (Atomic (APrimAppl Eql [AInt 2, AInt 13])))
+        
+          {- conditionals -}
+        , ("3", inject (Complex (If (ABool True)  (Atomic $ AInt 3) (Atomic $ AInt 2))))
+        , ("2", inject (Complex (If (ABool False) (Atomic $ AInt 3) (Atomic $ AInt 2))))
 
-s5 = injectWith r5 t5 (Atomic $ AVar "b") where
-        r5 :: Env
-        r5 "b" = 12
-        t5 :: Store
-        t5 12 = ValueZ 6
--- 6
+          {- variable reference -}
+        , ("16", inject (Let "c" (Atomic $ AInt 16) (Atomic $ AVar "c")))
+        , ("31", inject (Complex (Letrec ["lr" := (AInt 31)]
+                                        (Atomic $ AVar "lr"))))
 
-s6 = inject (Complex (Set "b" $ AInt 16))  -- ?? test in isolation without letrec
+          {- apply identity lambda -}
+        , ("4",  inject (Complex (Proc [ALambda ident, AInt 4])))
+        , ("#t", inject (Complex (Proc [ALambda ident, ABool True])))
 
--- PICKUP
--- (check-eq? 6 (church->nat (church-compile
--- '(letrec ([len (lambda (lst)
---                  (if (null? lst)
---                      0
---                      (add1 (len (cdr lst)))))])
---    (len (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 (cons '() '())))))))))))
+        , ("6",  sVarLookup)
+        ]
+        where sVarLookup = injectWith r5 t5 (Atomic $ AVar "b") where
+                r5 :: Env
+                r5 "b" = 1001
+                t5 :: Store
+                t5 1001 = ValueZ 6
 
-s7 = inject (Complex (Letrec ["lr" := (AInt 31)]
-                             (Atomic $ AVar "lr")))  -- 31 ok
+finalControlString :: S -> String
+finalControlString state = show (stateControl $ eval state)
 
-testAll = map stateControl (map eval [s0, s1, s2, s3, s4, s5, s7])
+assert :: (Expect, S) -> Bool
+assert (expect, input) = pass where
+        got = finalControlString input
+        pass = case expect == got of
+                False -> error $ "input=" ++ show input ++ ". expect=" ++ expect ++ ". got=" ++ got
+                True -> True
+
+test = map assert cases

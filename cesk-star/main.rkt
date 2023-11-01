@@ -1,11 +1,18 @@
 #lang racket
 
 (provide (all-defined-out))
+(require rackunit)
 
-; INTERPRETED LANGUAGE: LAMBDA CALCULUS
+; interpreting:  lambda calculus
+; using:         CESK* machine (tick/alloc: [X] none  [ ] functions  [ ] stacks)
 
-;; observations I'm not terribly sure about:
-; Kont is also Storable along with Value(Env) -> atomic evaluation can yield Kont
+#| observations I'm not terribly sure about:
+
+- Kont is also Storable along with Value(Env); atomic evaluation can yield Kont
+- the adj "abstract" in abstract time-stamped cesk* means we use stack data structures
+  in tick and alloc instead of first-class functions
+
+|#
 
 (define (any? _) #t)
 
@@ -21,7 +28,7 @@
 (define (Kont? v) (list? v))  ; mt | ar(e,r,a) | fn(l,r,a)
 
 (struct S (expr env store addr) #:transparent)
-(define mt 0)
+(define mt (list))
 (define default-addr 0)
 (define default-env (hash))
 (define default-store (hash default-addr mt))
@@ -36,12 +43,10 @@
 
 (define/contract (final? s) (-> struct? boolean?)
   (match s
-    [(S e _r t a) #:when
+    [(S e _r σ a) #:when
                   (and (procedure? e)
-                       (empty? (hash-ref t a #f))) true]
+                       (empty? (hash-ref σ a #f))) true]
     [_ false]))
-
-(define str (hash 1001 (list)))
-
-(final? (S add1 default-env default-store 1001))
-(final? (S add1 default-env str 1001))
+(check-false (final? (S add1 default-env default-store 1001)))
+(check-true
+    (let ([σ (hash 1001 (list))]) (final? (S add1 default-env σ 1001))))

@@ -26,27 +26,29 @@ observations I'm not terribly sure about:
       (cons? v)))     ; application
 
 (define (Storable? v)
-  (or (any? v)     ; Kont
+  (or (Kont? v)
       (cons? v)))  ; denotable values (lam . env)
 
 (define (Store? v) (hash? v))  ; Map Addr Storable?
 (define/contract (lookup m k) (-> hash? any? any?)
-  ; Panicking is desired behavior.
+  ; Panicking is desired (debugging) behavior.
   (hash-ref m k))
 
-(define (Kont? v) (list? v))  ; mt | ar(e,r,a) | fn(l,r,a)
-(define mt (list))
+(define (Kont? v) (or (empty? v) (struct? v)))  ; empty | ar(e,r,a) | fn(l,r,a)
+(struct ar (e r a) #:transparent)
+(struct fn (l r a) #:transparent)
 
 (struct S (expr env store addr) #:transparent)
 (define default-addr 0)
 (define default-env (hash))
-(define default-store (hash default-addr mt))
+(define default-store (hash default-addr empty))
 
 (define/contract (inj e) (-> Exp? struct?)
   (S e default-env default-store default-addr))
 
 (define (inj-with r σ e)
   (S e r σ default-addr))
+
 
 ; CHURCH ENCODING
 
@@ -108,16 +110,27 @@ observations I'm not terribly sure about:
      (let* ([e0  (car e)]
             [e1  (cdr e)]
             [b   (fresh-addr σ)]
-            [σ/  (extend σ b (list e1 r a))])  ; ?? struct ar fn
-       (S e0 r σ/ b))]
+            [σ+  (extend σ b (ar e1 r a))])
+       (S e0 r σ+ b))]
+
+    [(S v r σ a)
+     (match (lookup σ a)
+       [(ar e r+ c)
+        (let* ([b   (fresh-addr σ)]
+               [k   (fn v r c)]
+               [σ+  (extend σ b k)])
+          (S e r+ σ+ b))]
+       ; ?? what's passed around stores is string of compiled procedures,
+       ; not procedure?.
+       [(fn l r+ c)
+        (let* ([x ""]
+               [e ""]
+               [b    (fresh-addr σ)]
+               [r++  (extend r+ x b)]
+               [σ+   (extend σ b (cons v r))])
+          (S e r++ σ+ c))])]
 
     [_ s]))
-
-; ; test ok:  ?? unit
-; (let ([r   (hash "x" 1001)]
-;       [to  (hash 1001 (cons c1 default-env))])
-;       (step (inj-with r to "x")))
-
 
 (define/contract (eval s) (-> struct? struct?)
   ((until final? step) s))
@@ -130,6 +143,14 @@ observations I'm not terribly sure about:
          [final  (eval start)])
     (S-expr final))  ; ?? define control-str
   "not_in_env")  ; ?? expect thunk (lambda () not_in_env)
+
+(check-equal?
+  (let* ([r   (hash "x" 1001)]
+         [to  (hash 1001 (cons c2 default-env))]
+         [s   (inj-with r to "x")])
+    (c->number (S-expr (step s))))
+  2)
+
 
 (let* ([start  (inj (cons ident c2))]
        [final  (eval start)])

@@ -18,32 +18,24 @@ observations I'm not terribly sure about:
 
 |#
 
-(define (any? _) #t)
+(define variable-name? string?)
+(define church-encoded? list?)
+(struct app (e0 e1))  ; would use cons if `(cons? (list 1 1 1))` weren't true
 
-(define (Exp? v)
-  (or (string? v)     ; variable
-      (procedure? v)  ; abstraction
-      (cons? v)))     ; application
+(struct clo (lam env))
 
-(define (Storable? v)
-  (or (Kont? v)
-      (cons? v)))  ; denotable values (lam . env)
+(define (lookup m k)
+  (hash-ref m k #f))
 
-(define (Store? v) (hash? v))  ; Map Addr Storable?
-(define/contract (lookup m k) (-> hash? any? any?)
-  ; Panicking is desired (debugging) behavior.
-  (hash-ref m k))
-
-(define (Kont? v) (or (empty? v) (struct? v)))  ; empty | ar(e,r,a) | fn(l,r,a)
 (struct ar (e r a) #:transparent)
 (struct fn (l r a) #:transparent)
 
-(struct S (expr env store addr) #:transparent)
+(struct S (expr env store addr) #:transparent)  ; ?? types,guard at least in struct inst
 (define default-addr 0)
 (define default-env (hash))
 (define default-store (hash default-addr empty))
 
-(define/contract (inj e) (-> Exp? struct?)
+(define (inj e)
   (S e default-env default-store default-addr))
 
 (define (inj-with r σ e)
@@ -52,12 +44,13 @@ observations I'm not terribly sure about:
 
 ; CHURCH ENCODING
 
-(define ident (lambda (x) x))
-(define c1 (lambda (f) (lambda (x) (f x))))
-(define c2 (lambda (f) (lambda (x) (f (f x)))))
+(define (church-encoded->procedure data) (eval data (make-base-namespace)))
+
+(define ident `(lambda (x) x))
+(define c2 `(lambda (f) (lambda (x) (f (f x)))))
 
 (define (c->number c)
-  ((c add1) 0))
+  (((church-encoded->procedure c) add1) 0))
 (check-eq? (c->number c2) 2)
 
 (define (cnat n)
@@ -65,22 +58,27 @@ observations I'm not terribly sure about:
     (match n
       [0 acc]
       [_ `(f ,(h (sub1 n) acc))]))
-  (eval `(lambda (f) (lambda (x) ,(h n 'x))) (make-base-namespace)))
+  `(lambda (f) (lambda (x) ,(h n 'x))))
+
+(struct decapped (var body) #:transparent)
+
+; c2
+(define (decap lxe)
+  (match lxe
+    [`(lambda (,x) ,e)
+      (decapped (format "~a" x) e)]))
+; (decap c2)  ; ok
 
 
 ; THE MACHINE
 
-(define/contract (final? s) (-> struct? boolean?)
+(define (final? s)
   (match s
-    [(S e _r σ a) #:when
-                  (and (procedure? e)
-                       (empty? (hash-ref σ a #f))) true]
-    ; [_ false]))
-    [_ true]))
-; dont commit
-; (check-false (final? (S add1 default-env default-store 1001)))
-; (check-true
-;     (let ([σ (hash 1001 (list))]) (final? (S add1 default-env σ 1001))))
+    [(S e _r σ a)
+     (let* ([interpretable?  (not (app? e))]
+            [store-a         (lookup σ a)]
+            [mt?             (or (not store-a) (empty? store-a))])
+       (and interpretable? mt?))]))
 
 (define (until p f)
   (define (go x)
@@ -89,7 +87,7 @@ observations I'm not terribly sure about:
       [_        (go (f x))]))
   go)
 
-(define/contract (fresh-addr store) (-> hash? number?)
+(define (fresh-addr store)
   (define (h addr)
     (match (lookup store addr)
       [#f  addr]
@@ -99,60 +97,87 @@ observations I'm not terribly sure about:
 (define (extend m addr storable)
   (hash-set m addr storable))
 
-(define/contract (step s) (-> struct? struct?)
-  (match s
-    [(S (? string? e) r σ a)
+(define (step s)
+  (display 'input:)(displayln s)
+  (define res (match s
+    [(S (? variable-name? e) r σ a)
+     (displayln "var...")
      (let* ([e-addr  (lookup r e)]
             [d       (lookup σ e-addr)])
        (S (car d) (cdr d) σ a))]
 
-    [(S (? cons? e) r σ a)
-     (let* ([e0  (car e)]
-            [e1  (cdr e)]
+    [(S (? app? e) r σ a)
+     (displayln "appl...")
+     (let* (
+            [e0  (app-e0 e)]
+            [e1  (app-e1 e)]
             [b   (fresh-addr σ)]
-            [σ+  (extend σ b (ar e1 r a))])
+            [k   (ar e1 r a)]
+            [σ+  (extend σ b k)])
        (S e0 r σ+ b))]
 
     [(S v r σ a)
      (match (lookup σ a)
        [(ar e r+ c)
+        (displayln "ar...")
         (let* ([b   (fresh-addr σ)]
                [k   (fn v r c)]
                [σ+  (extend σ b k)])
           (S e r+ σ+ b))]
-       ; ?? what's passed around stores is string of compiled procedures,
-       ; not procedure?.
+
        [(fn l r+ c)
-        (let* ([x ""]
-               [e ""]
+        (displayln "fn...")
+        (let* (
+               [xe   (decap l)]
+               [x    (decapped-var xe)]
+               [e    (decapped-body xe)]
                [b    (fresh-addr σ)]
                [r++  (extend r+ x b)]
-               [σ+   (extend σ b (cons v r))])
-          (S e r++ σ+ c))])]
+               [σ+   (extend σ b (clo v r))])
+          (S e r++ σ+ c))])]))
+  (display 'state:)(displayln res)(displayln"")
+  res)
 
-    [_ s]))
+(define run (until final? step))
 
-(define/contract (eval s) (-> struct? struct?)
-  ((until final? step) s))
+(define (eval-clo lam-env)
+  ; ?? lambdas without non-local variables. body makes no reference to env
+  (clo-lam lam-env))
+
+(define (interpret-control-str state)
+  (match state
+    [(S (? variable-name? var) r σ _a) #:when (hash-has-key? r var)
+     (let* ([var-addr   (lookup r var)]
+            [var-d      (lookup σ var-addr)]
+            [var-value  (eval-clo var-d)])
+       (c->number var-value))]
+
+    [(S (? church-encoded? e) _r _σ _a)
+     (c->number e)]
+
+    [(S e _r _σ _a) (format "~a" e)]))
 
 
 ; -- TESTING
 
 (check-equal?
   (let* ([start  (inj "not_in_env")]
-         [final  (eval start)])
-    (S-expr final))  ; ?? define control-str
-  "not_in_env")  ; ?? expect thunk (lambda () not_in_env)
+         [final  (run start)])
+    (interpret-control-str final))
+  "not_in_env")
 
 (check-equal?
-  (let* ([r   (hash "x" 1001)]
-         [to  (hash 1001 (cons c2 default-env))]
-         [s   (inj-with r to "x")])
-    (c->number (S-expr (step s))))
+  (let* ([r      (hash "x" 1001)]
+         [σ      (hash 1001 (clo (cnat 2) default-env))]
+         [final  (run (inj-with r σ "x"))])
+    (interpret-control-str final))
   2)
 
 
-(let* ([start  (inj (cons ident c2))]
-       [final  (eval start)])
-  (display 'final:)(displayln final)
-  (S-expr final))
+(let* ([start  (inj (app ident (cnat 2)))]
+       ; [fwd  (step start)]
+       [final  (run start)]
+       )
+  (interpret-control-str final)
+  ; (void)
+  )

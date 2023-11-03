@@ -3,41 +3,29 @@
 (provide (all-defined-out))
 (require rackunit)
 
-#|
-
-interpreting:  lambda calculus
-using:         CESK* machine (tick/alloc: [X] none  [ ] functions  [ ] stacks)
-               fig.3 of Abstracting Abstract Machines paper
-
-observations I'm not terribly sure about:
-- Kont is also Storable along with Value(Env); atomic evaluation can yield Kont
-- the adj "abstract" in abstract time-stamped cesk* means we use stack data structures
-  in tick and alloc instead of first-class functions
-- https://smlhelp.github.io/book/docs/concepts/control-flow/cps
-  will provide extra context after implementing second def
-
-|#
+#| interpreting:  lambda calculus
+   using:         CESK* machine (tick/alloc: [X] none [ ] functions [ ] stacks)
+                  fig.3 of Abstracting Abstract Machines paper |#
 
 (define variable-name? string?)
 (define church-encoded? list?)
 (struct app (e0 e1))  ; would use cons if `(cons? (list 1 1 1))` weren't true
 
 (struct clo (lam env))
-
-(define (lookup m k)
-  (hash-ref m k #f))
+(define (eval-clo lam-env)
+  ; invariant: lambda has no non-local variables
+  (clo-lam lam-env))
 
 (struct ar (e r a) #:transparent)
 (struct fn (l r a) #:transparent)
 
-(struct S (expr env store addr) #:transparent)  ; ?? types,guard at least in struct inst
+(struct S (expr env store addr) #:transparent)
 (define default-addr 0)
 (define default-env (hash))
 (define default-store (hash default-addr empty))
 
 (define (inj e)
   (S e default-env default-store default-addr))
-
 (define (inj-with r σ e)
   (S e r σ default-addr))
 
@@ -60,32 +48,14 @@ observations I'm not terribly sure about:
       [_ `(f ,(h (sub1 n) acc))]))
   `(lambda (f) (lambda (x) ,(h n 'x))))
 
-(struct decapped (var body) #:transparent)
-
-; c2
-(define (decap lxe)
-  (match lxe
-    [`(lambda (,x) ,e)
-      (decapped (format "~a" x) e)]))
-; (decap c2)  ; ok
-
 
 ; THE MACHINE
 
-(define (final? s)
-  (match s
-    [(S e _r σ a)
-     (let* ([interpretable?  (not (app? e))]
-            [store-a         (lookup σ a)]
-            [mt?             (or (not store-a) (empty? store-a))])
-       (and interpretable? mt?))]))
+(define (lookup m k)
+  (hash-ref m k #f))
 
-(define (until p f)
-  (define (go x)
-    (match x
-      [(? p x)  x]
-      [_        (go (f x))]))
-  go)
+(define (extend m k v)
+  (hash-set m k v))
 
 (define (fresh-addr store)
   (define (h addr)
@@ -94,20 +64,22 @@ observations I'm not terribly sure about:
       [_   (h (add1 addr))]))
   (h 0))
 
-(define (extend m addr storable)
-  (hash-set m addr storable))
+(struct decapped (var body) #:transparent)
+(define (decap lxe)
+  (match lxe
+    [`(lambda (,x) ,e)
+      (define xe-string-pair (map (lambda (v) (format "~a" v))
+                                  (list x e)))
+      (apply decapped xe-string-pair)]))
 
 (define (step s)
-  (display 'input:)(displayln s)
-  (define res (match s
+  (define state (match s
     [(S (? variable-name? e) r σ a)
-     (displayln "var...")
      (let* ([e-addr  (lookup r e)]
             [d       (lookup σ e-addr)])
-       (S (car d) (cdr d) σ a))]
+       (S (clo-lam d) (clo-env d) σ a))]
 
     [(S (? app? e) r σ a)
-     (displayln "appl...")
      (let* (
             [e0  (app-e0 e)]
             [e1  (app-e1 e)]
@@ -119,14 +91,12 @@ observations I'm not terribly sure about:
     [(S v r σ a)
      (match (lookup σ a)
        [(ar e r+ c)
-        (displayln "ar...")
         (let* ([b   (fresh-addr σ)]
                [k   (fn v r c)]
                [σ+  (extend σ b k)])
           (S e r+ σ+ b))]
 
        [(fn l r+ c)
-        (displayln "fn...")
         (let* (
                [xe   (decap l)]
                [x    (decapped-var xe)]
@@ -135,14 +105,25 @@ observations I'm not terribly sure about:
                [r++  (extend r+ x b)]
                [σ+   (extend σ b (clo v r))])
           (S e r++ σ+ c))])]))
-  (display 'state:)(displayln res)(displayln"")
-  res)
+  ; (displayln "\nstate:")(displayln state)
+  state)
+
+(define (until p f)
+  (define (go x)
+    (match x
+      [(? p x)  x]
+      [_        (go (f x))]))
+  go)
+
+(define (final? s)
+  (match s
+    [(S e _r σ a)
+     (let* ([interpretable?  (not (app? e))]
+            [store-a         (lookup σ a)]
+            [mt?             (or (not store-a) (empty? store-a))])
+       (and interpretable? mt?))]))
 
 (define run (until final? step))
-
-(define (eval-clo lam-env)
-  ; ?? lambdas without non-local variables. body makes no reference to env
-  (clo-lam lam-env))
 
 (define (interpret-control-str state)
   (match state
@@ -155,7 +136,8 @@ observations I'm not terribly sure about:
     [(S (? church-encoded? e) _r _σ _a)
      (c->number e)]
 
-    [(S e _r _σ _a) (format "~a" e)]))
+    [(S e _r _σ _a)
+     (format "~a" e)]))
 
 
 ; -- TESTING
@@ -173,11 +155,14 @@ observations I'm not terribly sure about:
     (interpret-control-str final))
   2)
 
+(check-eq?
+  (let* ([start  (inj (app ident (cnat 11)))]
+         [final  (run start)])
+    (interpret-control-str final))
+  11)
 
-(let* ([start  (inj (app ident (cnat 2)))]
-       ; [fwd  (step start)]
-       [final  (run start)]
-       )
-  (interpret-control-str final)
-  ; (void)
-  )
+(check-eq?
+  (let* ([start  (inj (app ident (app ident (app ident (cnat 21)))))]
+         [final  (run start)])
+    (interpret-control-str final))
+  21)

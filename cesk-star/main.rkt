@@ -44,8 +44,8 @@
 (define (cnat n)
   (define (h n acc)
     (match n
-      [0 acc]
-      [_ `(f ,(h (sub1 n) acc))]))
+      [0  acc]
+      [_  `(f ,(h (sub1 n) acc))]))
   `(lambda (f) (lambda (x) ,(h n 'x))))
 
 

@@ -20,15 +20,14 @@
 (struct fn (l r a) #:transparent)
 
 (struct S (expr env store addr time) #:transparent)
-(define default-addr 0)
-(define default-time 0)
+(define default-z 0)
 (define default-env (hash))
-(define default-store (hash default-addr empty))
+(define default-store (hash default-z empty))
 
 (define (inj e)
-  (S e default-env default-store default-addr default-time))
+  (S e default-env default-store (addr default-z) (time default-z)))
 (define (inj-with r σ e)
-  (S e r σ default-addr default-time))
+  (S e r σ (addr default-z) (time default-z)))
 
 
 ; CHURCH ENCODING
@@ -61,16 +60,12 @@
 (struct time (z) #:transparent)
 (struct addr (z) #:transparent)
 
-(define/contract (tick state) (-> S? time?)
-  (time (add1 (S-time state))))
-(define/contract (alloc state) (-> S? addr?)
+(define (incr-time time-struct)
+  (time (add1 (time-z time-struct))))
+(define (tick state)
+  (incr-time (S-time state)))
+(define (alloc state)
   (addr (S-time state)))
-; (define (fresh-addr store)
-;   (define (h addr)
-;     (match (lookup store addr)
-;       [#f  addr]
-;       [_   (h (add1 addr))]))
-;   (h 0))
 
 (struct decapped (var body) #:transparent)
 (define (decap lxe)
@@ -82,10 +77,10 @@
 
 (define (step s)
   (define state (match s
-    [(S (? variable-name? e) r σ a t)
+    [(S (? variable-name? e) r σ a t)  ; alternative tick/1 implementation takes t instead of s
      (let* ([e-addr  (lookup r e)]
             [d       (lookup σ e-addr)]
-            [u       (tick t)])
+            [u       (tick s)])
        (S (clo-lam d) (clo-env d) σ a u))]
 
     [(S (? app? e) r σ a t)
@@ -94,7 +89,7 @@
             [b   (alloc s)]
             [k   (ar e1 r a)]
             [σ+  (extend σ b k)]
-            [u   (tick t)])
+            [u   (tick s)])
        (S e0 r σ+ b u))]
 
     [(S v r σ a t)
@@ -103,7 +98,7 @@
         (let* ([b   (alloc s)]
                [k   (fn v r c)]
                [σ+  (extend σ b k)]
-               [u   (tick t)])
+               [u   (tick s)])
           (S e r+ σ+ b u))]
 
        [(fn l r+ c)
@@ -113,14 +108,12 @@
                [b    (alloc s)]
                [r++  (extend r+ x b)]
                [σ+   (extend σ b (clo v r))]
-               [u   (tick t)])
+               [u   (tick s)])
           (S e r++ σ+ c u))])]
     
     ))
-  ; s
   ; (displayln "\nstate:")(displayln state)
-  state
-  )
+  state)
 
 (define (until p f)
   (define (go x)
@@ -171,17 +164,14 @@
     (interpret-control-str final))
   2)
 
-; ; (check-eq?
-;   (let* ([start  (inj (app ident (cnat 11)))]
-;          [fwd  (step start)]
-;          ; [final  (run start)]
-;          )
-;     ; (interpret-control-str final)
-;     (void))
-; ;   11)
+(check-eq?
+  (let* ([start  (inj (app ident (cnat 11)))]
+         [final  (run start)])
+    (interpret-control-str final))
+  11)
 
-; (check-eq?
-;   (let* ([start  (inj (app ident (app ident (app ident (cnat 21)))))]
-;          [final  (run start)])
-;     (interpret-control-str final))
-;   21)
+(check-eq?
+  (let* ([start  (inj (app ident (app ident (app ident (cnat 21)))))]
+         [final  (run start)])
+    (interpret-control-str final))
+  21)

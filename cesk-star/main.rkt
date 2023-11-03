@@ -80,8 +80,7 @@
        (S (clo-lam d) (clo-env d) σ a))]
 
     [(S (? app? e) r σ a)
-     (let* (
-            [e0  (app-e0 e)]
+     (let* ([e0  (app-e0 e)]
             [e1  (app-e1 e)]
             [b   (fresh-addr σ)]
             [k   (ar e1 r a)]
@@ -97,8 +96,7 @@
           (S e r+ σ+ b))]
 
        [(fn l r+ c)
-        (let* (
-               [xe   (decap l)]
+        (let* ([xe   (decap l)]
                [x    (decapped-var xe)]
                [e    (decapped-body xe)]
                [b    (fresh-addr σ)]

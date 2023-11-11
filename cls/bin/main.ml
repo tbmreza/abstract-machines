@@ -104,6 +104,28 @@ let unload = function
         | State ([], [], v :: _) -> Some v
         | _ -> None
 
+let is_final state =
+        match state with
+        | State ([], [], _ :: []) -> true
+        | _ -> false
+
+(* (define (until p f) *)
+(*   (define (go x) *)
+(*     (match x *)
+(*       [(? p x)  x] *)
+(*       [_        (go (f x))])) *)
+(*   go) *)
+(* let rec until_final is_final f x = *)
+(*   match x with *)
+(*   | x when is_final x -> x *)
+(*   | _ -> until_final is_final f (f x) *)
+let rec until p f x =
+  match x with
+  | x when p x -> x
+  | _ -> until p f (f x)
+
+let _run = until is_final step
+
 
 (* TESTING *)
 

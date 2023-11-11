@@ -1,9 +1,14 @@
-(* C ontrol (list of instructions) *)
-(* L ist of environments *)
-(* S tack of closures *)
+(* interpreting:  lambda calculus (de bruijn notation)
+   using:         CLS machine ([X] original [ ] disentangled)
+                  fig.21 of Han92 "From Operational Semantics to Abstract Machines" paper
+
+                  C ontrol (list of instructions)
+                  L ist of environments
+                  S tack of closures  *)
 
 let num = "200"
 let () = print_endline num
+
 
 
 type term = Ind of int
@@ -13,8 +18,16 @@ let ident = Abs (Ind 0)
 let ap = ident (* ?? *)
 let _a = App (ident, ident)
 
-(* (lambda (f) (lambda (x) x)) *)
-(* (lambda (f) (lambda (x) (f x))) *)
+(* DE BRUIJN NOTATION ENCODED EXPRESSIONS *)
+
+(* (lambda (f) (lambda (x) (f (f (f x))))) *)
+(* (lambda     (lambda     (1 (1 (1 0))))) *)
+(* λ.λ.1(1(10))
+*)
+(* let _c3 = App ((Ind 1), (Ind 0)) *)
+(* let _c3 = App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0)))) *)
+(* let _c3 = Abs (App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0))))) *)
+let _c3 = Abs (Abs (App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0))))))  (* ?? as_int *)
 
 (* instruction = term | ap *)
 

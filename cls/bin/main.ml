@@ -65,13 +65,16 @@ Now for intuition:
   c. 0 means index is closest to its lambda binder. Topmost value in the l can jump to s.
   d. With base condition specified, now we look to pred index n. We'll handle the topmost value in the base case, so we have to pop it for now.
   e. AP instructs that topmost term in s jumps to c, topmost value jumps to l together with the env beneath it. This step dances with step b.
+
+The function to trace and visualize that the machine can work is `step`:
+  utop # #trace step;;
+  utop # run (inj input_term);;
+
 *)
 
 let step = function
         | State ((Term (Abs t)) :: c, e :: l, s) ->
           State (c, l, Clo (t, e) :: s)
-
-        (* | State (Term (Abs _)::_, [], _) -> assert false *)
 
         | State ((Term (App (t0, t1))) :: c, e :: l, s) ->
           State ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, s)
@@ -81,8 +84,6 @@ let step = function
 
         | State ((Term (Ind n)) :: c, Env (_ :: e) :: l, s) ->
           State ((Term (Ind (pred n))) :: c, (Env e) :: l, s)
-
-        (* | State (Term _::_, _, _) -> assert false *)
 
         | State (AP :: c, l, v :: Clo (t, Env e) :: s) ->
           State ((Term t) :: c, Env (v :: e) :: l, s)
@@ -103,18 +104,18 @@ let rec until p f x =
   | x when p x -> x
   | _ -> until p f (f x)
 
-let _run = until is_final step
+let run = until is_final step
 
 
 (* TESTING *)
-
-(* applying ident with x gives x *)
-let test1 = App (ident, c2)
-let init1: state = inj test1
-let _s = step init1
-let _ss = step (step init1)
 
 (* test unload, unchurch *)
 let staged: state = State ([], [], Clo (Abs (Abs (App (Ind 1, App (Ind 1, App (Ind 1, Ind 0))))), Env []) :: [])
 let got: value = unload staged
 let () = assert (unchurch (value_term got) == 3)
+
+(* applying ident with x gives x *)
+let t1 = App (ident, c2)
+let fin = run (inj t1)
+let got: value = unload fin
+let () = assert (unchurch (value_term got) == 2)

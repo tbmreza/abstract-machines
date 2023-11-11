@@ -15,11 +15,13 @@ let ident = Abs (Ind 0)
 
 (* (lambda (f) (lambda (x) (f (f (f x))))) *)
 (* (lambda     (lambda     (1 (1 (1 0))))) *)
-(* λ.λ.1(1(10))
-*)
-let c2 = Abs (Abs (App ((Ind 1), App ((Ind 1), (Ind 0)))))
-(* ?? as_church :: int -> term *)
-let _c3 = Abs (Abs (App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0))))))
+(*                     λ.λ. 1 (1 (1 0))    *)
+
+let rec h n acc =
+        match n with
+        | 0 -> acc
+        | p -> (App (Ind 1, (h (pred p) acc)))
+let as_church n = Abs (Abs (h n (Ind 0)))
 
 (* counts number of applications of (Ind 1) *)
 let rec h c x = match (c, x) with
@@ -115,7 +117,13 @@ let got: value = unload staged
 let () = assert (unchurch (value_term got) == 3)
 
 (* applying ident with x gives x *)
-let t1 = App (ident, c2)
+let t1 = App (ident, as_church 2)
 let fin = run (inj t1)
 let got: value = unload fin
 let () = assert (unchurch (value_term got) == 2)
+
+(* idempotence *)
+let t2 = App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, as_church 3))))))))
+let fin = run (inj t2)
+let got: value = unload fin
+let () = assert (unchurch (value_term got) == 3)

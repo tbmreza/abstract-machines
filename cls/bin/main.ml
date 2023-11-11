@@ -23,10 +23,17 @@ let _a = App (ident, ident)
 (* (lambda     (lambda     (1 (1 (1 0))))) *)
 (* λ.λ.1(1(10))
 *)
-(* let _c3 = App ((Ind 1), (Ind 0)) *)
-(* let _c3 = App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0)))) *)
-(* let _c3 = Abs (App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0))))) *)
-let _c3 = Abs (Abs (App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0))))))  (* ?? as_int *)
+let c2 = Abs (Abs (App ((Ind 1), App ((Ind 1), (Ind 0)))))
+let c3 = Abs (Abs (App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0))))))
+
+(* counts number of applications of (Ind 1) *)
+let rec h c x = match (c, x) with
+        | ((App ((Ind 1), t)), x) -> h t (succ x)
+        | ((Abs t), x) -> h t x
+        | _ -> x
+let unchurch c = h c 0
+let _ok2 = unchurch c2
+let _ok = unchurch c3
 
 type instr = Term of term
            | AP  (* special instruction that "moves the computation back to the compilation section." *)
@@ -34,18 +41,21 @@ type instr = Term of term
 type env = Env of value list
 and value = Clo of term * env
 
-let _v = Clo (ident, Env [])
+let value_term v = match v with
+        | Clo (t, _) -> t
+        | _ -> assert false
 
 type c = instr list
 type l = env list
 type s = value list
-
 type state = State of c * l * s
-let _s = State ([], [], [])
 
-let inj t = State (t :: [], [], [])
+let _inj t: (state) = State ((Term t) :: [], [], [])
 
-let initial: state = inj (Term ident)
+(* State ( [Term (App (Abs (Ind 0), (Ind 0)))] *)
+(*         [], []) *)
+(* panics because l is empty. how to go about injecting App of idents? *)
+
 
 (* STEPS
 
@@ -67,23 +77,42 @@ Now for intuition:
 
 let _step = function
         | State ((Term (Abs t)) :: c, e :: l, s) ->
-          State (c, l, Clo (t, e) :: s) (* 1 *)
+          State (c, l, Clo (t, e) :: s)
 
         | State ((Term (App (t0, t1))) :: c, e :: l, s) ->
-          State ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, s) (* 2 *)
+          State ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, s)
 
         | State ((Term (Ind 0)) :: c, (Env (v :: _)) :: l, s) ->
-          State (c, l, v :: s) (* 3 *)
+          State (c, l, v :: s)
 
         | State ((Term (Ind n)) :: c, (Env (_ :: e)) :: l, s) ->
-          State ((Term (Ind (pred n))) :: c, (Env e) :: l, s) (* 4 *)
+          State ((Term (Ind (pred n))) :: c, (Env e) :: l, s)
 
         | State (AP :: c, l, v :: Clo (t, (Env e)) :: s) ->
-          State ((Term t) :: c, (Env (v :: e)) :: l, s) (* 5 *)
+          State ((Term t) :: c, (Env (v :: e)) :: l, s)
 
         | _ -> assert false
 
 let unload = function
         | State ([], [], v :: _) -> Some v
         | _ -> None
-let _res = unload initial
+
+
+(* TESTING *)
+
+(* (* applying ident with ident gives ident *) *)
+(* let test1 = App (ident, ident) *)
+(* let init1: state = inj test1 *)
+(* let _fwd = step init1 *)
+
+(* ?? *)
+(* let init1: state = inj c3 *)
+(* let _fwd = step init1 *)
+
+(* test unload, unchurch *)
+(* let staged_v: value = Clo (c2, (Env [])) *)
+let staged: state = State ([], [], Clo (c3, (Env [])) :: [])
+let res: value option = unload staged
+let _u = match res with
+        | Some v -> unchurch (value_term v)
+        | None -> assert false

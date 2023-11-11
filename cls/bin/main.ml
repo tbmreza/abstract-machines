@@ -39,18 +39,20 @@ type instr = Term of term
            | AP  (* special instruction that "moves the computation back to the compilation section." *)
 
 type env = Env of value list
-and value = Clo of term * env
+(* and value = Clo of term * env *)
+and value = Clo of term * (env option)
 
 let value_term v = match v with
         | Clo (t, _) -> t
-        | _ -> assert false
 
 type c = instr list
-type l = env list
+(* type l = env list *)
+type l = (env option) list
 type s = value list
 type state = State of c * l * s
 
-let _inj t: (state) = State ((Term t) :: [], [], [])
+(* let _inj t: (state) = State ((Term t) :: [], [], []) *)
+let inj t: (state) = State ((Term t) :: [], None :: [], [])
 
 (* State ( [Term (App (Abs (Ind 0), (Ind 0)))] *)
 (*         [], []) *)
@@ -75,21 +77,26 @@ Now for intuition:
   e. AP instructs that topmost term in s jumps to c, topmost value jumps to l together with the env beneath it. This step dances with step b.
 *)
 
-let _step = function
+let step = function
         | State ((Term (Abs t)) :: c, e :: l, s) ->
           State (c, l, Clo (t, e) :: s)
 
         | State ((Term (App (t0, t1))) :: c, e :: l, s) ->
           State ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, s)
 
-        | State ((Term (Ind 0)) :: c, (Env (v :: _)) :: l, s) ->
+        (* | State ((Term (Ind 0)) :: c, (Env (v :: _)) :: l, s) -> *)
+        | State ((Term (Ind 0)) :: c, Some (Env (v :: _)) :: l, s) ->
           State (c, l, v :: s)
 
-        | State ((Term (Ind n)) :: c, (Env (_ :: e)) :: l, s) ->
-          State ((Term (Ind (pred n))) :: c, (Env e) :: l, s)
+        (* | State ((Term (Ind n)) :: c, (Env (_ :: e)) :: l, s) -> *)
+        | State ((Term (Ind n)) :: c, Some (Env (_ :: e)) :: l, s) ->
+          (* State ((Term (Ind (pred n))) :: c, (Env e) :: l, s) *)
+          State ((Term (Ind (pred n))) :: c, Some (Env e) :: l, s)
 
-        | State (AP :: c, l, v :: Clo (t, (Env e)) :: s) ->
-          State ((Term t) :: c, (Env (v :: e)) :: l, s)
+        (* | State (AP :: c, l, v :: Clo (t, (Env e)) :: s) -> *)
+        | State (AP :: c, l, v :: Clo (t, Some (Env e)) :: s) ->
+          (* State ((Term t) :: c, (Env (v :: e)) :: l, s) *)
+          State ((Term t) :: c, Some (Env (v :: e)) :: l, s)
 
         | _ -> assert false
 
@@ -100,19 +107,17 @@ let unload = function
 
 (* TESTING *)
 
-(* (* applying ident with ident gives ident *) *)
-(* let test1 = App (ident, ident) *)
-(* let init1: state = inj test1 *)
-(* let _fwd = step init1 *)
+(* applying ident with ident gives ident *)
+let test1 = App (ident, ident)
+let init1: state = inj test1
+let _fw = step init1
 
-(* ?? *)
-(* let init1: state = inj c3 *)
-(* let _fwd = step init1 *)
+let init1: state = inj c3
+let _fwd = step init1
 
 (* test unload, unchurch *)
-(* let staged_v: value = Clo (c2, (Env [])) *)
-let staged: state = State ([], [], Clo (c3, (Env [])) :: [])
-let res: value option = unload staged
+let staged: state = State ([], [], Clo (c3, None) :: [])
+let res: value option = unload staged  (* ?? unload :: value option -> unchurched *)
 let _u = match res with
         | Some v -> unchurch (value_term v)
         | None -> assert false

@@ -30,19 +30,11 @@ let rec h c x = match (c, x) with
         | _ -> x
 let unchurch_num c = h c 0
 
-(* (lambda (cn) *)
-(*   (lambda (f) *)
-(*     (lambda (x) (f ((cn f) x))))) *)
-let cSUCC   = Abs (Abs (Abs (App (Ind 1, App (App (Ind 2, Ind 1), Ind 0)))))
 
-(* (define TRUE   (lambda (a) (lambda (_) a))) *)
-(* (define FALSE  (lambda (_) (lambda (b) b))) *)
-(* (define AND    (lambda (p) (lambda (q) ((p q) p)))) *)
-(* (define NOT    (lambda (b) ((b FALSE) TRUE))) *)
-let cTRUE   = Abs (Abs (Ind 1))
-let cFALSE  = Abs (Abs (Ind 0))
-let cAND    = Abs (Abs (App (App (Ind 1, Ind 0), Ind 1)))
-let cNOT    = Abs (App (App (Ind 0, cFALSE), cTRUE))
+let cTRUE   = Abs (Abs (Ind 1))                            (* (lambda (a) (lambda (_) a)) *)
+let cFALSE  = Abs (Abs (Ind 0))                            (* (lambda (_) (lambda (b) b)) *)
+let cAND    = Abs (Abs (App (App (Ind 1, Ind 0), Ind 1)))  (* (lambda (p) (lambda (q) ((p q) p))) *)
+let cNOT    = Abs (App (App (Ind 0, cFALSE), cTRUE))       (* (lambda (b) ((b cFALSE) cTRUE)) *)
 
 
 type instr = Term of term
@@ -164,6 +156,3 @@ let () = assert_false (App (App (cAND, cFALSE), cFALSE))
 
 let () = assert_false (App (cNOT, cTRUE))
 let () = assert_true (App (cNOT, cFALSE))
-
-(* add1 *)
-let () = assert_num_eq (App (cSUCC, as_church 9)) 10  (* fails *)

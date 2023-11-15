@@ -3,7 +3,9 @@
 
 module Lib where
 
--- LANGUAGE: A-NORMAL FORM
+{- interpreting:  ANF (administrative normal form) lambda calculus
+   using:         CESK machine
+                  fig.2 of Abstracting Abstract Machines paper -}
 
 data AExp = ALambda Lambda | AVar Var
           | ABool Bool | AInt Int
@@ -75,7 +77,7 @@ data Kont = Letk Var Exp Env Kont | Halt
 
 type Addr = Int
 
--- Env and Store typeclass
+-- Env and Store ?? typeclass
 -- "as tuple" syntax.
 (==>) :: a -> b -> (a, b)
 (==>) x y = (x, y)
@@ -202,6 +204,7 @@ alloc cap store = addrs where
                 _          -> h (succ addr) acc
         addrs = h 0 []
 
+-- ?? generalize
 rExtend :: Env -> (Var, Addr) -> Var -> Addr
 rExtend r (var, addr) = r' where
         r' var = addr

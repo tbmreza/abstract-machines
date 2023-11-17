@@ -51,33 +51,41 @@ exception User of string
 
 type env = Env of value list
 and value = Clo of term * env
-(* type env = (index -> addr) *)
-type envia = (index -> addr)
-let _default_env : envia = function
+type envS = (index -> addr)
+type valueS = Closure of term * envS
+let default_env : envS = function
         | _ -> raise (User "accessing env with nonexistent index")
 
-(* type value = Clo of term * env *)
-let _default_value = Clo (Ind 0, Env [])
+let _default_value = Closure (Ind 0, default_env)
 
+let value_termS v = match v with
+        | Closure (t, _) -> t
 let value_term v = match v with
         | Clo (t, _) -> t
 
-(* σ *)
-type store = (addr -> value)
-let _default_store : store = function
+(* σ lower sigma *)
+type store = (addr -> valueS)
+let default_store (a: addr) : valueS =
+        match a with
         | _ -> raise (User "accessing store with nonexistent addr")
 
 type c = instr list
 type l = env list
 type s = value list
-(* type l = -- ?? env, addr list *)
-(* type s = addr list -- that we can query store for *)
 type state = State of c * l * s
+(* quartet *)
+type stateS = S of c * envS * store * addr
 
 let inj (t: term) = State (
         (Term t) :: [],
         (Env []) :: [],
         [])
+
+let _injS (t: term) : stateS = S (
+        (Term t) :: [],
+        default_env,  (* wild first guess. why: not list-wrapped as fn is already extensible *)
+        default_store,
+        0)
 
 
 (* STEPS
@@ -103,6 +111,10 @@ The function to trace and visualize that the machine can work is `step`:
 
 *)
 
+let stepS = function
+        (* | _ -> S ([], [], default_store, 0) *)
+        | _ -> S ([], default_env, default_store, 0)
+
 let step = function
         | State ((Term (Lambda t)) :: c, e :: l, s) ->
           State (c, l, Clo (t, e) :: s)
@@ -125,9 +137,18 @@ let unload = function
         | State (_, _, v :: _) -> v
         | _ -> assert false
 
+let unloadS = function
+        | S (_, _, st, a) -> st a
+
 let is_final state =
         match state with
         | State ([], [], _ :: []) -> true
+        | _ -> false
+
+let is_finalS state =
+        match state with
+        (* | S ([], [], _,  _ :: []) -> true *)
+        (* | S ([], [], _,  0) -> true *)
         | _ -> false
 
 let rec until p f x =
@@ -136,7 +157,23 @@ let rec until p f x =
   | _ -> until p f (f x)
 
 let run = until is_final step
+let _runS = until is_finalS stepS
 
+(* 1. staged unload *)
+let c3 = Lambda (Lambda (App (Ind 1, App (Ind 1, App (Ind 1, Ind 0)))))
+let staged_value = Closure (c3, default_env)
+
+let st (q: addr) : valueS =
+        match q with
+        | 1001 -> staged_value
+        | _ -> default_store q
+
+let state_value_numS (s: stateS) : int = (unloadS s) |> value_termS |> unchurch_num
+let staged: stateS = S ([], default_env, st, 1001)
+let () = assert (state_value_numS staged == 3)
+
+(* 2. shortest inj to unload *)
+(* unchurchable ident of c0*)
 
 (* EVALUATOR *)
 

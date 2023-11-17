@@ -1,17 +1,19 @@
 (* interpreting:  lambda calculus (de bruijn notation)
-   using:         CLS machine ([X] original [ ] disentangled)
-                  fig.1 of Han91 "Staging transformations for abstract machines" paper
+   using:         CLS machine with Store indirection
 
                   C ontrol (list of instructions)
                   L ist of environments
                   S tack of closures  *)
 
-type term = Ind of int
-          | Abs of term
+type index = int
+type addr = int
+
+type term = Ind of index
+          | Lambda of term
           | App of term * term
 
 (* DE BRUIJN NOTATION ENCODED EXPRESSIONS *)
-let ident = Abs (Ind 0)
+let ident = Lambda (Ind 0)
 
 (* (lambda (f) (lambda (x) (f (f (f x))))) *)
 (* (lambda     (lambda     (1 (1 (1 0))))) *)
@@ -21,34 +23,55 @@ let rec h n acc =
         match n with
         | 0 -> acc
         | p -> (App (Ind 1, (h (pred p) acc)))
-let as_church n = Abs (Abs (h n (Ind 0)))
+let as_church n = Lambda (Lambda (h n (Ind 0)))
 
-(* counts number of applications of (Ind 1) *)
+(* counts number of applications of (Ind 1)   ?? eval *)
 let rec h c x = match (c, x) with
-        | ((App ((Ind 1), t)), x) -> h t (succ x)
-        | ((Abs t), x) -> h t x
+        (* | ((App ((Ind 1), t)), x) -> h t (succ x) *)
+        | ((App (Ind _, t)), x) -> h t (succ x)  (* ?? *)
+        | ((Lambda t), x) -> h t x
         | _ -> x
 let unchurch_num c = h c 0
 
+(* (* (lambda (cn) *) *)
+(* (*   (lambda (f) *) *)
+(* (*     (lambda (x) (f ((cn f) x))))) *) *)
+(* let cSUCC  = Lambda (Lambda (Lambda (App (Ind 1, App (App (Ind 2, Ind 1), Ind 0))))) *)
 
-let cTRUE   = Abs (Abs (Ind 1))                            (* (lambda (a) (lambda (_) a)) *)
-let cFALSE  = Abs (Abs (Ind 0))                            (* (lambda (_) (lambda (b) b)) *)
-let cAND    = Abs (Abs (App (App (Ind 1, Ind 0), Ind 1)))  (* (lambda (p) (lambda (q) ((p q) p))) *)
-let cNOT    = Abs (App (App (Ind 0, cFALSE), cTRUE))       (* (lambda (b) ((b cFALSE) cTRUE)) *)
+let cTRUE   = Lambda (Lambda (Ind 1))                            (* (lambda (a) (lambda (_) a)) *)
+let cFALSE  = Lambda (Lambda (Ind 0))                            (* (lambda (_) (lambda (b) b)) *)
+let cAND    = Lambda (Lambda (App (App (Ind 1, Ind 0), Ind 1)))  (* (lambda (p) (lambda (q) ((p q) p))) *)
+let cNOT    = Lambda (App (App (Ind 0, cFALSE), cTRUE))          (* (lambda (b) ((b cFALSE) cTRUE)) *)
 
 
 type instr = Term of term
            | AP  (* special instruction that "moves the computation back to the compilation section." *)
 
+exception User of string
+
 type env = Env of value list
 and value = Clo of term * env
+(* type env = (index -> addr) *)
+type envia = (index -> addr)
+let _default_env : envia = function
+        | _ -> raise (User "accessing env with nonexistent index")
+
+(* type value = Clo of term * env *)
+let _default_value = Clo (Ind 0, Env [])
 
 let value_term v = match v with
         | Clo (t, _) -> t
 
+(* σ *)
+type store = (addr -> value)
+let _default_store : store = function
+        | _ -> raise (User "accessing store with nonexistent addr")
+
 type c = instr list
 type l = env list
 type s = value list
+(* type l = -- ?? env, addr list *)
+(* type s = addr list -- that we can query store for *)
 type state = State of c * l * s
 
 let inj (t: term) = State (
@@ -60,7 +83,7 @@ let inj (t: term) = State (
 (* STEPS
 
 First spelling out the match cases poorly:
-  a. abs head, control tail; pop l; the 2 combine for new s head
+  a. Lambda head, control tail; pop l; the 2 combine for new s head
   b. app head, reform control with ap sequence; l pushes its own head; s unchanged
   c. index closest to binder; pop l; push its term to s
   d. index n, pred n; pop l, push its tail back to l; s unchanged
@@ -81,7 +104,7 @@ The function to trace and visualize that the machine can work is `step`:
 *)
 
 let step = function
-        | State ((Term (Abs t)) :: c, e :: l, s) ->
+        | State ((Term (Lambda t)) :: c, e :: l, s) ->
           State (c, l, Clo (t, e) :: s)
 
         | State ((Term (App (t0, t1))) :: c, e :: l, s) ->
@@ -126,20 +149,26 @@ let unchurch_bool (ctest: term) : bool =
         | 2 -> false
         | _ -> assert false
 
+(* can't see the same way working for num because after this counter function is still needed *)
+(* need: cSUCC, c0 *)
+(* let unchurch_num (ctest: term) : int = App (App (ctest, as_church 0), cSUCC) *)
+
 
 (* TESTING *)
 
 let state_value_num (s: state) : int = (unload s) |> value_term |> unchurch_num
 let assert_num_eq (t: term) (expect: int) =
         assert (expect == (t |> inj |> run |> state_value_num))
+let _dstep (t: term) = t |> inj |> step
+let _drun (t: term) = t |> inj |> run
 
 (* unittest unload, unchurch *)
-let staged: state = State ([], [], Clo (Abs (Abs (App (Ind 1, App (Ind 1, App (Ind 1, Ind 0))))), Env []) :: [])
+let staged: state = State ([], [], Clo (Lambda (Lambda (App (Ind 1, App (Ind 1, App (Ind 1, Ind 0))))), Env []) :: [])
 let () = assert (state_value_num staged == 3)
 
 (* applying ident with x gives x *)
-let t1 = App (ident, as_church 2)
-let () = assert_num_eq t1 2
+let input1 = App (ident, as_church 2)
+let () = assert_num_eq input1 2
 
 (* idempotence *)
 let t2 = App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, as_church 3))))))))
@@ -156,3 +185,8 @@ let () = assert_false (App (App (cAND, cFALSE), cFALSE))
 
 let () = assert_false (App (cNOT, cTRUE))
 let () = assert_true (App (cNOT, cFALSE))
+
+(* (* succ 0 ok, why: unchurch corner case *) *)
+(* let cnat = App (cSUCC, as_church 0) *)
+(* let () = assert_num_eq cnat 1 *)
+(* let _cnat = App (cSUCC, Lambda (Lambda (App (Ind 1, Ind 0)))) *)

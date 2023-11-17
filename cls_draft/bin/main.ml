@@ -1,36 +1,31 @@
-(* ideas:
-type s = addr       (* addr pointing to state's value *)
-type s = addr list  (* addr list whose head points to state's value *)
-
-type l = addr list  (* list of addrs pointing to value; the environment *)
-type l = (addr option) list  (* idea: inj for l is nil :: nil *)
-*)
-
-let unwrap value_option = match value_option with
-  | Some v -> v
-  | _ -> assert false
-
 type index = int
 type term = Ind of index
           | Lambda of term
           | App of term * term
 let ident = Lambda (Ind 0)
 
+let rec h n acc =
+  match n with
+  | 0 -> acc
+  | p -> (App (Ind 1, (h (pred p) acc)))
+let as_church n = Lambda (Lambda (h n (Ind 0)))
+
 type instr = Term of term
            | AP  (* special instruction that "moves the computation back to the compilation section." *)
-let _i = Term ident
 
 type addr = int
 type c = instr list
 type l = (addr option) list  (* list of addrs pointing to value; the environment *)
-type s = addr list  (* addr list whose head points to state's value *)
+type s = addr list           (* addr list whose head points to state's value *)
 
 type value = Closure of term * l
-let value_term v = match v with
-  | Closure (t, _) -> t
+let value_term v = match v with | Closure (t, _) -> t
+let unwrap value_option = match value_option with
+  | Some v -> v
+  | _ -> assert false
+
 type store = (addr -> value option)
-let default_store (_a: addr) : value option =
-  None
+let default_store (_a: addr) : value option = None
 
 type state = S of c * l * store * s
 
@@ -38,7 +33,7 @@ let inj (t: term) : state = S (
   Term t :: [],
   None :: [],
   default_store,
-  0 :: [])
+  [])
 
 let rec h st x =
   match st x with
@@ -68,10 +63,10 @@ let step = function
   (* | State ((Term (Lambda t)) :: c, e :: l, s) -> *)
   (*   State (c, l, Clo (t, e) :: s) *)
   (* control abstracting, extend s *)
-  | S ((Term (Lambda t)) :: c, env_addr :: l, st, _s) ->
+  | S (Term (Lambda t) :: c, env_addr :: l, st, s) ->
     let fresh = fresh_addr st in
     let v = Closure (t, env_addr :: []) in
-    S (c, l, extend st fresh v, fresh :: [])
+    S (c, l, extend st fresh v, fresh :: s)
 
   (* | State (AP :: c, l, v :: Clo (t, Env e) :: s) -> *)
   (*   State ((Term t) :: c, Env (v :: e) :: l, s) *)
@@ -81,8 +76,7 @@ let step = function
     let v = st v_addr in
     let t, e = match st te_addr with
       | Some (Closure (t, e)) -> t, e
-      | _ -> assert false
-    in
+      | _ -> assert false in
     let ve = Closure (v |> unwrap |> value_term, e) in
     let fresh = fresh_addr st in
     S ((Term t) :: c, Some fresh :: l, extend st fresh ve, s)
@@ -105,48 +99,53 @@ let is_final state =
   | S ([], [], _, _ :: []) -> true
   | _ -> false
 
-let _run = until is_final step
+let run = until is_final step
 
-let unload s =
-  match s with
-  | S (_, _, st, a :: []) ->
+let unload s = match s with
+  | S (_, _, st, a :: []) -> (* syntax for nested match due to how ocaml treats indents *)
     let res = match st a with
       | Some (Closure (t, e)) -> Closure (Lambda t, e)
       | _ -> assert false
     in res
   | _ -> assert false
 
-let value_term v = match v with
-  | Closure (t, _) -> t
-(* counts number of applications of (Ind 1) *)
 let rec h c x = match (c, x) with
-  (* | ((App ((Ind 1), t)), x) -> h t (succ x) *)
-  | ((App (Ind _, t)), x) -> h t (succ x)  (* ?? *)
+  | ((App (Ind _, t)), x) -> h t (succ x)
   | ((Lambda t), x) -> h t x
   | _ -> x
 and unchurch_num c = h c 0
 
-(* staged unload *)
-let c3 = Lambda (Lambda (App (Ind 1, App (Ind 1, App (Ind 1, Ind 0)))))
-let staged_value = Closure (c3, [])
+let go (t: term) : term = (inj t) |> run |> unload |> value_term
 
-let st (q: addr) : value option =
-        match q with
-        | 1001 -> Some staged_value
-        | _ -> default_store q
+
+(* TESTING *)
 
 let state_value_num (s: state) : int = (unload s) |> value_term |> unchurch_num
-let staged: state = S ([], [], st, 1001 :: [])
-let () = assert (state_value_num staged == 3)
 
-(* one step away *)
-let plated = S ((Term (Ind 0)) :: [] , Some 1001 :: [], st, 0 :: [])
-let () = assert (3 == (plated |> step |> state_value_num))
+let st (q: addr) : value option =
+  match q with
+  | 1001 -> Some (Closure (as_church 3, []))
+  | _ -> default_store q
 
-(* 2 steps away *)
-let plated = S ((Term (Ind 1)) :: [] , Some 400 :: Some 1001 :: [], st, 0 :: [])
-let () = assert (3 == (plated |> step |> step |> state_value_num))
+(* test: staged unload *)
+let () =
+  let staged: state = S ([], [], st, 1001 :: []) in
+  assert (state_value_num staged == 3)
 
-(* ident of ident *)
-let inp = App (ident, ident)
-let _cp = inp |> inj |> step |> step |> step
+(* test: one step away *)
+let () =
+  let plated = S ((Term (Ind 0)) :: [] , Some 1001 :: [], st, 0 :: []) in
+  assert (3 == (plated |> step |> state_value_num))
+
+(* test: 2 steps away *)
+let () =
+  let plated = S ((Term (Ind 1)) :: [] , Some 400 :: Some 1001 :: [], st, 0 :: []) in
+  assert (3 == (plated |> step |> step |> state_value_num))
+
+(* test: ident of ident *)
+(* extensional: num == (unloaded (as_church num)) *)
+let () =
+  let inp = App (ident, ident) in
+  let test (* expect ident's property *) = go inp in
+  let cnum = App (test, as_church 3) |> go in
+  assert (3 == unchurch_num cnum)

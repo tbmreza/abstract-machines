@@ -1,5 +1,3 @@
-(* exception User of string *)
-
 type index = int
 type term = Ind of index
           | Lambda of term
@@ -7,7 +5,7 @@ type term = Ind of index
 let ident = Lambda (Ind 0)
 
 type instr = Term of term
-           (* | AP  (* special instruction that "moves the computation back to the compilation section." *) *)
+           | AP  (* special instruction that "moves the computation back to the compilation section." *)
 let _i = Term ident
 
 type addr = int
@@ -66,12 +64,27 @@ let step = function
     let v = Closure (t, env_addr :: []) in
     S (c, l, extend st fresh v, fresh)
 
+  (* (* | State (AP :: c, l, v :: Clo (t, Env e) :: s) -> *) *)
+  (* (*   State ((Term t) :: c, Env (v :: e) :: l, s) *) *)
+  (* (* AP recipe: env grows from stack. extraction of v takes place; extension of env; *) *)
+  (* (* stack is key: its head becomes part of env new head; next [t,e], t becomes ctrl, e becomes other part of env new head *) *)
+  (* | S (AP :: c, l, st, v_addr :: te_addr :: s) -> *)
+  (*   (* let spreaded query in *) *)
+  (*   S ((Term t) :: c, Env (v :: e) :: l, s) *)
+
+  (* | State ((Term (App (t0, t1))) :: c, e :: l, s) -> *)
+  (*   State ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, s) *)
+  (* app constituents; leave st and s *)
+  | S ((Term (App (t0, t1))) :: c, e :: l, st, s) ->
+    S ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, st, s)
+
   | _ -> assert false
 
 let unload = function
   | S (_, _, st, a) ->
     match st a with
-    | Some v -> v
+    (* | Some v -> v *)
+    | Some (Closure (t, e)) -> Closure (Lambda t, e)
     | _ -> assert false
 
 let value_term v = match v with

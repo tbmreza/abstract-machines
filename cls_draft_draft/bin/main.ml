@@ -15,18 +15,13 @@ let _i = Term ident
 type addr = int
 type c = instr list
 type l = addr list  (* list of addrs pointing to value; the environment *)
-(* type s = addr list  (* addr list whose head points to state's value *) *)
-type s = addr  (* addr list whose head points to state's value *)
+type s = addr list  (* addr list whose head points to state's value *)
 
 type value = Closure of term * l
 let _v0 = Closure (Ind 0, [])
-(* type store = (addr -> value) *)
 type store = (addr -> value option)
-(* let default_store (a: addr) : value = *)
 let default_store (_a: addr) : value option =
   None
-  (* match a with *)
-  (* | _ -> raise (User "accessing store with nonexistent addr") *)
 
 type state = S of c * l * store * s
 
@@ -34,7 +29,7 @@ let _inj (t: term) : state = S (
   (Term t) :: [],
   [],
   default_store,
-  0)
+  0 :: [])
 
 let rec h st x =
   match st x with
@@ -53,7 +48,7 @@ let step = function
   (* control is Ind 0, env points to value of interest. *)
 
   | S ((Term (Ind 0)) :: c , a :: l, st, _) ->
-    S (c, l, st, a)
+    S (c, l, st, a :: [])
 
   (* | State ((Term (Ind n)) :: c, Env (_ :: e) :: l, s) -> *)
   (*   State ((Term (Ind (pred n))) :: c, (Env e) :: l, s) *)
@@ -67,7 +62,7 @@ let step = function
   | S ((Term (Lambda t)) :: c, env_addr :: l, st, _s) ->
     let fresh = fresh_addr st in
     let v = Closure (t, env_addr :: []) in
-    S (c, l, extend st fresh v, fresh)
+    S (c, l, extend st fresh v, fresh :: [])
 
   (* (* | State (AP :: c, l, v :: Clo (t, Env e) :: s) -> *) *)
   (* (*   State ((Term t) :: c, Env (v :: e) :: l, s) *) *)
@@ -85,12 +80,14 @@ let step = function
 
   | _ -> assert false
 
-let unload = function
-  (* | S (_, _, st, a :: []) -> *)
-  | S (_, _, st, a) ->
-    match st a with
-    | Some (Closure (t, e)) -> Closure (Lambda t, e)
-    | _ -> assert false
+let unload s =
+  match s with
+  | S (_, _, st, a :: []) ->
+    let res = match st a with
+      | Some (Closure (t, e)) -> Closure (Lambda t, e)
+      | _ -> assert false
+    in res
+  | _ -> assert false
 
 let value_term v = match v with
   | Closure (t, _) -> t
@@ -112,15 +109,15 @@ let st (q: addr) : value option =
         | _ -> default_store q
 
 let state_value_num (s: state) : int = (unload s) |> value_term |> unchurch_num
-let staged: state = S ([], [], st, 1001)
+let staged: state = S ([], [], st, 1001 :: [])
 let () = assert (state_value_num staged == 3)
 
 (* one step away *)
-let plated = S ((Term (Ind 0)) :: [] , 1001 :: [], st, 0)
+let plated = S ((Term (Ind 0)) :: [] , 1001 :: [], st, 0 :: [])
 let () = assert (3 == (plated |> step |> state_value_num))
 
 (* 2 steps away *)
-let plated = S ((Term (Ind 1)) :: [] , 400 :: 1001 :: [], st, 0)
+let plated = S ((Term (Ind 1)) :: [] , 400 :: 1001 :: [], st, 0 :: [])
 let () = assert (3 == (plated |> step |> step |> state_value_num))
 
 (* ??. end to end *)

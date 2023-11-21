@@ -6,6 +6,11 @@
                   L ist of environments
                   S tack of closures  *)
 
+(* ?? dev lags behind cls_store:
+- result term need wrapping with Abs
+- go function
+*)
+
 type term = Ind of int
           | Abs of term
           | App of term * term

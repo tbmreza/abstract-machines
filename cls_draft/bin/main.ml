@@ -47,31 +47,17 @@ let extend st a v : store =
   | n -> st n
 
 let step = function
-  (* | State ((Term (Ind 0)) :: c, Env (v :: _) :: l, s) -> *)
-  (*   State (c, l, v :: s) *)
-  (* control is Ind 0, env points to value of interest. *)
-
   | S (Term (Ind 0) :: c , Some a :: l, st, _) ->
     S (c, l, st, a :: [])
 
-  (* | State ((Term (Ind n)) :: c, Env (_ :: e) :: l, s) -> *)
-  (*   State ((Term (Ind (pred n))) :: c, (Env e) :: l, s) *)
-  (* control unactionable, ignore env head *)
   | S (Term (Ind n) :: c, _ :: l, st, s) ->
     S (Term (Ind (pred n)) :: c, l, st, s)
 
-  (* | State ((Term (Lambda t)) :: c, e :: l, s) -> *)
-  (*   State (c, l, Clo (t, e) :: s) *)
-  (* control abstracting, extend s *)
   | S (Term (Lambda t) :: c, env_addr :: l, st, s) ->
     let fresh = fresh_addr st in
     let v = Closure (t, env_addr :: []) in
     S (c, l, extend st fresh v, fresh :: s)
 
-  (* | State (AP :: c, l, v :: Clo (t, Env e) :: s) -> *)
-  (*   State ((Term t) :: c, Env (v :: e) :: l, s) *)
-  (* AP recipe: env grows from stack. extraction of v takes place; extension of env; *)
-  (* stack is key: its head becomes part of env new head; next [t,e], t becomes ctrl, e becomes other part of env new head *)
   | S (AP :: c, l, st, v_addr :: te_addr :: s) ->
     let v = st v_addr in
     let t, e = match st te_addr with
@@ -81,9 +67,6 @@ let step = function
     let fresh = fresh_addr st in
     S ((Term t) :: c, Some fresh :: l, extend st fresh ve, s)
 
-  (* | State ((Term (App (t0, t1))) :: c, e :: l, s) -> *)
-  (*   State ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, s) *)
-  (* app constituents; leave st and s *)
   | S ((Term (App (t0, t1))) :: c, e :: l, st, s) ->
     S ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, st, s)
 
@@ -118,6 +101,16 @@ and unchurch_num c = h c 0
 let go (t: term) : term = (inj t) |> run |> unload |> value_term
 
 
+(* EVALUATOR *)
+
+let cTRUE   = Lambda (Lambda (Ind 1))                            (* (lambda (a) (lambda (_) a)) *)
+let cFALSE  = Lambda (Lambda (Ind 0))                            (* (lambda (_) (lambda (b) b)) *)
+let cAND    = Lambda (Lambda (App (App (Ind 1, Ind 0), Ind 1)))  (* (lambda (p) (lambda (q) ((p q) p))) *)
+let cNOT    = Lambda (App (App (Ind 0, cFALSE), cTRUE))          (* (lambda (b) ((b cFALSE) cTRUE)) *)
+
+(* let unchurch_bool = ?? *)
+
+
 (* TESTING *)
 
 let state_value_num (s: state) : int = (unload s) |> value_term |> unchurch_num
@@ -149,3 +142,8 @@ let () =
   let test (* expect ident's property *) = go inp in
   let cnum = App (test, as_church 3) |> go in
   assert (3 == unchurch_num cnum)
+
+(* test: bool truth table *)
+let _test = App (cNOT, cFALSE) |> go  (* ok *)
+let _test = App (App (cAND, cTRUE), cTRUE) |> inj |> step  (* go panics *)
+let _test = App (App (cTRUE, Lambda (as_church 1)), Lambda (as_church 2))  (* go panics *)

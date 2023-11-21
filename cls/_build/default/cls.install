@@ -1,8 +1,0 @@
-lib: [
-  "_build/install/default/lib/cls/META"
-  "_build/install/default/lib/cls/dune-package"
-  "_build/install/default/lib/cls/opam"
-]
-bin: [
-  "_build/install/default/bin/cls"
-]

@@ -4,8 +4,7 @@ type term = Ind of index
           | App of term * term
 let ident = Lambda (Ind 0)
 
-let rec h n acc =
-  match n with
+let rec h n acc = match n with
   | 0 -> acc
   | p -> (App (Ind 1, (h (pred p) acc)))
 let as_church n = Lambda (Lambda (h n (Ind 0)))
@@ -35,19 +34,17 @@ let inj (t: term) : state = S (
   default_store,
   [])
 
-let rec h st x =
-  match st x with
+let rec h st x = match st x with
   | None -> x
   | Some _ -> h st (succ x)
 and fresh_addr (st: store) : addr = h st 0
 
-let extend st a v : store =
-  function
+let extend st a v : store = function
   | n when n == a -> Some v
   | n -> st n
 
 let step = function
-  | S (Term (Ind 0) :: c , Some a :: l, st, _) ->
+  | S (Term (Ind 0) :: c , Some a :: l, st, _s) ->
     S (c, l, st, a :: [])
 
   | S (Term (Ind n) :: c, _ :: l, st, s) ->
@@ -67,18 +64,16 @@ let step = function
     let fresh = fresh_addr st in
     S ((Term t) :: c, Some fresh :: l, extend st fresh ve, s)
 
-  | S ((Term (App (t0, t1))) :: c, e :: l, st, s) ->
+  | S (Term (App (t0, t1)) :: c, e :: l, st, s) ->
     S ((Term t0) :: (Term t1) :: AP :: c, e :: e :: l, st, s)
 
   | _ -> assert false
 
-let rec until p f x =
-  match x with
+let rec until p f x = match x with
   | x when p x -> x
   | _ -> until p f (f x)
 
-let is_final state =
-  match state with
+let is_final state = match state with
   | S ([], [], _, _ :: []) -> true
   | _ -> false
 
@@ -107,6 +102,7 @@ let cTRUE   = Lambda (Lambda (Ind 1))                            (* (lambda (a) 
 let cFALSE  = Lambda (Lambda (Ind 0))                            (* (lambda (_) (lambda (b) b)) *)
 let cAND    = Lambda (Lambda (App (App (Ind 1, Ind 0), Ind 1)))  (* (lambda (p) (lambda (q) ((p q) p))) *)
 let cNOT    = Lambda (App (App (Ind 0, cFALSE), cTRUE))          (* (lambda (b) ((b cFALSE) cTRUE)) *)
+let _bbb = App (cAND, cNOT)
 
 (* let unchurch_bool = ?? *)
 
@@ -145,5 +141,5 @@ let () =
 
 (* test: bool truth table *)
 let _test = App (cNOT, cFALSE) |> go  (* ok *)
-let _test = App (App (cAND, cTRUE), cTRUE) |> inj |> step  (* go panics *)
+let _dd = App (App (cAND, cTRUE), cTRUE)  (* |> go *)
 let _test = App (App (cTRUE, Lambda (as_church 1)), Lambda (as_church 2))  (* go panics *)

@@ -98,11 +98,20 @@ let go (t: term) : term = (inj t) |> run |> unload |> value_term
 
 (* EVALUATOR *)
 
+(* (lambda (cn) *)
+(*   (lambda (f) *)
+(*     (lambda (x) (f ((cn f) x))))) *)
+let cSUCC  = Lambda (Lambda (Lambda (App (Ind 1, App (App (Ind 2, Ind 1), Ind 0)))))
+
 let cTRUE   = Lambda (Lambda (Ind 1))                            (* (lambda (a) (lambda (_) a)) *)
 let cFALSE  = Lambda (Lambda (Ind 0))                            (* (lambda (_) (lambda (b) b)) *)
 let cAND    = Lambda (Lambda (App (App (Ind 1, Ind 0), Ind 1)))  (* (lambda (p) (lambda (q) ((p q) p))) *)
 let cNOT    = Lambda (App (App (Ind 0, cFALSE), cTRUE))          (* (lambda (b) ((b cFALSE) cTRUE)) *)
-let _bbb = App (cAND, cNOT)
+let _unused = App (cAND, cNOT)
+
+(* (lambda (n) *)
+(*   ((n (lambda (_) FALSE)) TRUE)) *)
+let cIS_ZERO  = Lambda (App (App (Ind 0, Lambda cFALSE), cTRUE))
 
 (* let unchurch_bool = ?? *)
 
@@ -139,7 +148,24 @@ let () =
   let cnum = App (test, as_church 3) |> go in
   assert (3 == unchurch_num cnum)
 
+
+(* WIP *)
+
 (* test: bool truth table *)
 let _test = App (cNOT, cFALSE) |> go  (* ok *)
 let _dd = App (App (cAND, cTRUE), cTRUE)  (* |> go *)
 let _test = App (App (cTRUE, Lambda (as_church 1)), Lambda (as_church 2))  (* go panics *)
+
+(* test: arith *)
+let _inp = App (cSUCC, as_church 2) (* |> go |> unchurch_num *)
+
+(* ? curiously passing ? *)
+let () =
+  let inp = App (cIS_ZERO, as_church 0 (* but panics on other nums *) ) in
+  let _res = inp |> go in
+  (* ?? assert eq on display repr *)
+  assert true
+let () =
+  let inp = App (cNOT, cFALSE (* but panics on cTRUE *) ) in
+  let _res = inp |> go in
+  assert true

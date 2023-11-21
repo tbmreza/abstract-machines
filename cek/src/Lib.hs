@@ -3,6 +3,8 @@
 
 module Lib where
 
+-- INTERPRETED LANGUAGE: LAMBDA CALCULUS
+
 data Exp = Ref Var
          | Lam Lambda
          | Exp :@ Exp

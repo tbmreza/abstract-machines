@@ -6,19 +6,21 @@
                   L ist of environments
                   S tack of closures  *)
 
+(* ?? dev lags behind cls_store:
+- result term need wrapping with Abs
+- go function
+*)
+
 type term = Ind of int
           | Abs of term
           | App of term * term
-let ident = Abs (Ind 0)
 
 (* DE BRUIJN NOTATION ENCODED EXPRESSIONS *)
+let ident = Abs (Ind 0)
 
 (* (lambda (f) (lambda (x) (f (f (f x))))) *)
 (* (lambda     (lambda     (1 (1 (1 0))))) *)
 (*                     λ.λ. 1 (1 (1 0))    *)
-
-(* let _c0 = Abs (Abs (Ind 0)) *)
-(* let c2  = Abs (Abs (App ((Ind 1), App ((Ind 1), (Ind 0))))) *)
 
 let rec h n acc =
         match n with
@@ -26,15 +28,18 @@ let rec h n acc =
         | p -> (App (Ind 1, (h (pred p) acc)))
 let as_church n = Abs (Abs (h n (Ind 0)))
 
-(* let c5 = as_church 5 *)
-(* let c3 = Abs (Abs (App ((Ind 1), App ((Ind 1), App ((Ind 1), (Ind 0)))))) *)
-
 (* counts number of applications of (Ind 1) *)
 let rec h c x = match (c, x) with
         | ((App ((Ind 1), t)), x) -> h t (succ x)
         | ((Abs t), x) -> h t x
         | _ -> x
-let unchurch c = h c 0
+let unchurch_num c = h c 0
+
+
+let cTRUE   = Abs (Abs (Ind 1))                            (* (lambda (a) (lambda (_) a)) *)
+let cFALSE  = Abs (Abs (Ind 0))                            (* (lambda (_) (lambda (b) b)) *)
+let cAND    = Abs (Abs (App (App (Ind 1, Ind 0), Ind 1)))  (* (lambda (p) (lambda (q) ((p q) p))) *)
+let cNOT    = Abs (App (App (Ind 0, cFALSE), cTRUE))       (* (lambda (b) ((b cFALSE) cTRUE)) *)
 
 
 type instr = Term of term
@@ -51,7 +56,7 @@ type l = env list
 type s = value list
 type state = State of c * l * s
 
-let inj t: (state) = State (
+let inj (t: term) = State (
         (Term t) :: [],
         (Env []) :: [],
         [])
@@ -115,21 +120,44 @@ let rec until p f x =
 let run = until is_final step
 
 
+(* EVALUATOR *)
+
+let eval (t: term) : int = unchurch_num (value_term (unload (run (inj t))))
+let unchurch_bool (ctest: term) : bool =
+        (* Apply it twice. If it evaluates to 1st argument then it's ocaml true. *)
+        (* If it doesn't evaluate to 2nd argument either something must be wrong. *)
+        match App (App (ctest, as_church 1), as_church 2) |> eval with
+        | 1 -> true
+        | 2 -> false
+        | _ -> assert false
+
+
 (* TESTING *)
 
-(* test unload, unchurch *)
+let state_value_num (s: state) : int = (unload s) |> value_term |> unchurch_num
+let assert_num_eq (t: term) (expect: int) =
+        assert (expect == (t |> inj |> run |> state_value_num))
+
+(* unittest unload, unchurch *)
 let staged: state = State ([], [], Clo (Abs (Abs (App (Ind 1, App (Ind 1, App (Ind 1, Ind 0))))), Env []) :: [])
-let got: value = unload staged
-let () = assert (unchurch (value_term got) == 3)
+let () = assert (state_value_num staged == 3)
 
 (* applying ident with x gives x *)
 let t1 = App (ident, as_church 2)
-let fin = run (inj t1)
-let got: value = unload fin
-let () = assert (unchurch (value_term got) == 2)
+let () = assert_num_eq t1 2
 
 (* idempotence *)
 let t2 = App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, App (ident, as_church 3))))))))
-let fin = run (inj t2)
-let got: value = unload fin
-let () = assert (unchurch (value_term got) == 3)
+let () = assert_num_eq t2 3
+
+(* bool truth table *)
+let assert_true (t: term) = assert (unchurch_bool t)
+let assert_false (t: term) = assert (not (unchurch_bool t))
+
+let () = assert_true (App (App (cAND, cTRUE), cTRUE))
+let () = assert_false (App (App (cAND, cTRUE), cFALSE))
+let () = assert_false (App (App (cAND, cFALSE), cTRUE))
+let () = assert_false (App (App (cAND, cFALSE), cFALSE))
+
+let () = assert_false (App (cNOT, cTRUE))
+let () = assert_true (App (cNOT, cFALSE))

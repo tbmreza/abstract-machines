@@ -3,9 +3,14 @@
 
 module Lib where
 
-{- interpreting:  ANF (administrative normal form) lambda calculus
+{- interpreting:  lambda calculus
    using:         CESK machine
                   fig.2 of Abstracting Abstract Machines paper -}
+
+data Term = Ref Var
+          | Lam Lambda
+          | Term :@ Term
+          deriving Show
 
 data AExp = ALambda Lambda | AVar Var
           | ABool Bool | AInt Int

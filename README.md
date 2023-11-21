@@ -4,3 +4,4 @@ observations I'm not terribly sure about:
   in tick and alloc instead of first-class functions
 - https://smlhelp.github.io/book/docs/concepts/control-flow/cps is a valuable resource
     - may have the breadth for an instructive material, but writing style is uninspiring
+- "compositional interpreter" is umbrella term for interpreters born from maths/fp

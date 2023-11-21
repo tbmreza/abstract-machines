@@ -24,3 +24,10 @@
 <!-- (*     [Clo (Abs (App (Ind 1, App (Ind 1, Ind 0))), Env []); *) -->
 <!-- (*      Clo (Abs (App (Ind 1, App (Ind 1, App (Ind 1, Ind 0)))), Env [])])] *) -->
 <!--  -->
+dune exec cls
+
+type env = Var -> Addr  -- in standard lc where appl is "replacing (binded) within body with arg, removing binder lambda"
+type env = ?? -> Addr   -- in de bruijn notation where  "replacing 0 within body with arg, removing binder lambda (which means decr to other indices)"
+
+type store = Addr -> Value
+

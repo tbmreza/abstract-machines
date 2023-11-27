@@ -6,6 +6,13 @@
 (require redex)
 (require rackunit)
 
+(define-term fact-5
+  ((μ (fact : (num -> num))
+      (λ ([n : num])
+        (if0 n 1
+             (* n (fact (pred n))))))
+   5))
+
 
 #| REDEX OPERATIONS NOT SPECIFIC TO LANGUAGE INTERPRETED |#
 
@@ -65,23 +72,23 @@
       #:mode (⊢ I I I O)
   #:contract (⊢ Γ M : T)
 
-  [------------- num-relation
+  [------------- NUM
    (⊢ Γ N : num)]
 
   [(lookup Γ X T)
-   -------------- var
+   -------------- VAR
    (⊢ Γ X : T)]
 
-  [----------------------- op1
+  [----------------------- OP1
    (⊢ Γ O1 : (num -> num))]
 
-  [--------------------------- op2
+  [--------------------------- OP2
    (⊢ Γ O2 : (num num -> num))]
 
   [(⊢ Γ M_1 : num)
    (⊢ Γ M_2 : T)
    (⊢ Γ M_3 : T)
-   --------------------------- if0
+   --------------------------- IF0
    (⊢ Γ (if0 M_1 M_2 M_3) : T)]
 
   [(⊢ (ext Γ (X T)) L : T)
@@ -90,7 +97,7 @@
 
   [(⊢ Γ M_0 : (T_1 ..._1 -> T))
    (⊢ Γ M_1 : T_1) ...
-   ----------------------- app
+   ----------------------- APP
    (⊢ Γ (M_0 M_1 ..._1) : T)]
 
   [(unique (X ...))
@@ -168,6 +175,52 @@
   (C ::= V (M ρ) (if0 C C C) (C C ...))
   (E ::= hole (V ... E C ...) (if0 E C C)))
 
+(define vρ (reduction-relation PCFρ #:domain C
+  (--> ((if0 M ...) ρ)
+       (if0 (M ρ) ...)
+       ρ-if)
 
-; PICKUP 
+  (--> ((M ...) ρ)
+       ((M ρ) ...)
+       ρ-app)
+
+  (--> (O ρ)
+       O
+       ρ-op)
+
+  (--> (N ρ)
+       N
+       ρ-num)
+
+  (--> (X ρ) V
+       (judgment-holds (lookup ρ X V))
+       ρ-x)
+
+  (--> (((λ ([X : T] ...) M) ρ) V ...)
+       (M (ext ρ (X V) ...))
+       β)
+
+  (--> ((name f ((μ (X_f : T_f) (λ ([X : T] ...) M)) ρ)) V ...)
+       (M (ext ρ (X_f f) (X V) ...))
+       rec-β)
+
+  (--> (O V ...) V_1
+       (judgment-holds (δ (O V ...) V_1))
+       δ)
+
+  (--> (if0 0 C_1 C_2)
+       C_1
+       if-t)
+
+  (--> (if0 N C_1 C_2)
+       C_2
+       (side-condition (not (equal? 0 (term N))))
+       if-f)))
+
+(define-metafunction PCFρ injρ
+  :  M      -> C
+  [ (injρ M)  (M ())])
+
+(define -->vρ (context-closure vρ PCFρ E))
+
 (apply-reduction-relation* -->vρ (term (injρ fact-5)))

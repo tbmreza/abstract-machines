@@ -35,7 +35,7 @@
   (test-equal (term (lookup x ((w 7) (x 8)))) (term 8)))
 
 (define-metafunction Env
-  lookup : x env -> _
+  lookup : x env -> e or boolean
   [(lookup x (_ ... (x e) _ ...))  e]
   [(lookup _ _) #false])
 

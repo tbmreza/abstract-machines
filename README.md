@@ -1,7 +1,23 @@
-observations I'm not terribly sure about:
-- Kont is also Storable along with Value(Env); atomic evaluation can yield Kont
-- the adj "abstract" in abstract time-stamped cesk* means we use stack data structures
-  in tick and alloc instead of first-class functions
-- https://smlhelp.github.io/book/docs/concepts/control-flow/cps is a valuable resource
-    - may have the breadth for an instructive material, but writing style is uninspiring
-- "compositional interpreter" is umbrella term for interpreters born from maths/fp
+# abstract-machines
+
+Some code artifacts that I collected along the
+way in studying Abstract Interpretation theories
+and PL in general.
+
+None of the artifacts is immediately useful to
+the real world. You could think of each modules,
+folders here are trying to escape this repo by
+manifesting itself as a working static analysis
+tool or paper ([either] for a compiler phase, or
+verifying programs).
+
+As for the repo itself, from day one it has
+served as an online backup storage that does
+signal my interests to the internet.
+Happy to discuss!
+
+[either]: https://en.wikipedia.org/wiki/Abstract_interpretation
+
+### See also
+- https://github.com/andrejbauer/plzoo
+- https://github.com/brendanzab/language-garden

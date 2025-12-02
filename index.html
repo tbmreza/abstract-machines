@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abstract Machines & Analysis Tools</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            border-bottom: 2px solid #eaeaea;
+            padding-bottom: 10px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #eaeaea;
+            border-radius: 5px;
+            transition: box-shadow 0.2s;
+        }
+        li:hover {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        a {
+            text-decoration: none;
+            color: #0366d6;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .description {
+            margin-top: 5px;
+            color: #555;
+        }
+        .lang {
+            display: inline-block;
+            background-color: #f1f8ff;
+            color: #0366d6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <h1>Abstract Machines & Analysis Tools</h1>
+    <p>A collection of compiler phases, abstract machines, and tools based on abstract interpretation.</p>
+
+    <ul>
+        <li>
+            <a href="analyses/">analyses</a>
+            <span class="lang">Haskell</span>
+            <div class="description">Abstract interpretation analyses (Interval analysis, etc.).</div>
+        </li>
+        <li>
+            <a href="cek/">cek</a>
+            <span class="lang">Haskell</span>
+            <div class="description">CEK machine implementation.</div>
+        </li>
+        <li>
+            <a href="cesk/">cesk</a>
+            <span class="lang">Haskell</span>
+            <div class="description">CESK machine implementation.</div>
+        </li>
+        <li>
+            <a href="cesk-anf/">cesk-anf</a>
+            <span class="lang">Haskell</span>
+            <div class="description">CESK machine implementation for A-Normal Form.</div>
+        </li>
+        <li>
+            <a href="cesk-star/">cesk-star</a>
+            <span class="lang">Racket</span>
+            <div class="description">CESK* machine implementation.</div>
+        </li>
+        <li>
+            <a href="cesk-star-timestamp/">cesk-star-timestamp</a>
+            <span class="lang">Racket</span>
+            <div class="description">CESK* machine implementation with timestamps.</div>
+        </li>
+        <li>
+            <a href="cls/">cls</a>
+            <span class="lang">OCaml</span>
+            <div class="description">CLS machine implementation.</div>
+        </li>
+        <li>
+            <a href="cls_draft/">cls_draft</a>
+            <span class="lang">OCaml</span>
+            <div class="description">Draft CLS machine implementation.</div>
+        </li>
+        <li>
+            <a href="cls_store/">cls_store</a>
+            <span class="lang">OCaml</span>
+            <div class="description">CLS machine implementation with store.</div>
+        </li>
+        <li>
+            <a href="concrete/">concrete</a>
+            <div class="description">Concrete interpreter tasks (Lambda calculus, etc.).</div>
+        </li>
+        <li>
+            <a href="absint-tutor/">absint-tutor</a>
+            <div class="description">Abstract Interpretation Tutor / Notes.</div>
+        </li>
+        <li>
+            <a href="use-redex-dsl/">use-redex-dsl</a>
+            <span class="lang">Racket</span>
+            <div class="description">Racket Redex models for abstract machines.</div>
+        </li>
+    </ul>
+
+    <p style="margin-top: 40px; font-size: 0.9em; color: #777;">
+        <a href="https://github.com/autogen/abstract-machines">View on GitHub</a>
+    </p>
+</body>
+</html>

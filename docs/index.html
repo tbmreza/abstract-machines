@@ -3,183 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>State of Abstract Interpretation Tools</title>
+    <title>Abstract Interpretation in Practice</title>
     <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --text-light: #666;
+            --border-radius: 8px;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             line-height: 1.6;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #333;
-        }
-        h1, h2, h3 {
-            color: #2c3e50;
-            margin-top: 1.5em;
-            margin-bottom: 0.5em;
-            border-bottom: 1px solid #eaeaea;
-            padding-bottom: 5px;
-        }
-        h1 { border-bottom: 2px solid #eaeaea; }
-        ul {
-            list-style-type: none;
+            margin: 0;
             padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
-        li.tool-card {
-            margin-bottom: 20px;
-            padding: 20px;
-            border: 1px solid #e1e4e8;
-            border-radius: 6px;
-            background-color: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+
+        /* Hero Section */
+        header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
         }
-        .tool-header {
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 20px auto 0;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Section Headers */
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid #e1e4e8;
+            padding-bottom: 10px;
+            margin-top: 40px;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
+            align-items: flex-start;
+            margin-bottom: 15px;
         }
-        .tool-name {
+
+        .card-title {
             font-size: 1.25em;
             font-weight: bold;
-            color: #0366d6;
+            color: var(--secondary-color);
+            margin: 0;
         }
-        .tool-type {
+
+        .card-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .card-title a:hover {
+            text-decoration: underline;
+        }
+
+        .badge {
             background-color: #f1f8ff;
             color: #0366d6;
-            padding: 2px 8px;
+            padding: 4px 8px;
             border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: 600;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
+        .card-body {
+            flex-grow: 1;
+            font-size: 0.95em;
+            color: #444;
+            margin-bottom: 15px;
+        }
+
+        .card-footer {
             font-size: 0.85em;
-            font-weight: 500;
+            color: var(--text-light);
+            border-top: 1px solid #eee;
+            padding-top: 15px;
         }
-        .tool-desc {
-            margin-bottom: 10px;
+
+        .card-footer strong {
+            color: var(--primary-color);
         }
-        .meta-info {
-            font-size: 0.9em;
-            color: #586069;
-        }
-        a { color: #0366d6; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .section-intro { margin-bottom: 20px; }
+
+        /* Footer */
         footer {
-            margin-top: 50px;
-            padding-top: 20px;
+            text-align: center;
+            padding: 40px 20px;
+            background-color: #fff;
+            color: var(--text-light);
             border-top: 1px solid #eaeaea;
-            font-size: 0.9em;
-            color: #6a737d;
+            margin-top: 60px;
+        }
+
+        footer a {
+            color: var(--secondary-color);
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
-    <h1>Abstract Interpretation in Practice</h1>
 
-    <div class="section-intro">
-        <p>
-            Abstract Interpretation is a theory of sound approximation of the semantics of computer programs.
-            While initially theoretical, it has found widespread industrial application in static analysis tools
-            used to verify safety-critical software. This page surveys the state of existing tools and compiler phases
-            based on this theory.
-        </p>
+    <header>
+        <h1>Abstract Interpretation in Practice</h1>
+        <p>A survey of industrial static analysis tools and compiler optimizations based on the theory of sound approximation.</p>
+    </header>
+
+    <div class="container">
+
+        <h2>Industrial Static Analysis Tools</h2>
+        <div class="grid">
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><a href="https://www.absint.com/astree/index.htm">Astrée</a></h3>
+                    <span class="badge">Proprietary</span>
+                </div>
+                <div class="card-body">
+                    A sound static analyzer that proves the absence of runtime errors in C/C++ applications. Famous for verifying the primary flight control software of the Airbus A340/A380 with zero false alarms.
+                </div>
+                <div class="card-footer">
+                    <strong>Target:</strong> Embedded C/C++<br>
+                    <strong>Use Case:</strong> Avionics, Automotive
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><a href="https://frama-c.com/">Frama-C (Eva)</a></h3>
+                    <span class="badge">Open Source</span>
+                </div>
+                <div class="card-body">
+                    A platform for source code analysis of C software. The <strong>Eva</strong> plugin uses abstract interpretation to verify C code against ACSL specifications, computing precise variation domains.
+                </div>
+                <div class="card-footer">
+                    <strong>Target:</strong> C<br>
+                    <strong>Developer:</strong> CEA-List, Inria
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><a href="https://fbinfer.com/">Facebook Infer</a></h3>
+                    <span class="badge">Open Source</span>
+                </div>
+                <div class="card-body">
+                    Scalable static analysis for mobile and server code. Uses <strong>Infer.AI</strong> to build abstract interpretation-based checkers. It enables compositional analysis (bi-abduction) to handle huge codebases.
+                </div>
+                <div class="card-footer">
+                    <strong>Target:</strong> Java, C++, Obj-C<br>
+                    <strong>Use Case:</strong> Mobile, Web
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><a href="https://www.mathworks.com/products/polyspace.html">Polyspace</a></h3>
+                    <span class="badge">Proprietary</span>
+                </div>
+                <div class="card-body">
+                    One of the earliest commercial tools. Verifies C/C++ and Ada for runtime errors and MISRA compliance. Uses color-coding to visualize safe, unsafe, dead, and unproven code.
+                </div>
+                <div class="card-footer">
+                    <strong>Target:</strong> C, C++, Ada<br>
+                    <strong>Developer:</strong> MathWorks
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><a href="https://github.com/NASA-SW-VnV/ikos">IKOS</a></h3>
+                    <span class="badge">Open Source</span>
+                </div>
+                <div class="card-body">
+                    <strong>Inference Kernel for Open Static Analyzers</strong>. A high-performance framework from NASA for building static analyzers based on abstract interpretation.
+                </div>
+                <div class="card-footer">
+                    <strong>Target:</strong> C, C++<br>
+                    <strong>Developer:</strong> NASA Ames
+                </div>
+            </div>
+
+        </div>
+
+        <h2>Compiler Phases & Optimizations</h2>
+        <div class="grid">
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Strictness Analysis</h3>
+                    <span class="badge">GHC</span>
+                </div>
+                <div class="card-body">
+                    Used in lazy functional compilers (like GHC) to identify arguments that are always evaluated. Enables call-by-value optimization, removing thunk overhead. Formulated as backward abstract interpretation.
+                </div>
+                <div class="card-footer">
+                    <strong>Type:</strong> Backward Analysis<br>
+                    <strong>Goal:</strong> Performance
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Value Range Propagation</h3>
+                    <span class="badge">GCC, LLVM</span>
+                </div>
+                <div class="card-body">
+                    Determines possible value ranges for variables. Enables removal of redundant checks and dead code elimination. A direct application of Interval Analysis.
+                </div>
+                <div class="card-footer">
+                    <strong>Type:</strong> Forward Analysis<br>
+                    <strong>Goal:</strong> Optimization
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Polyhedral Optimization</h3>
+                    <span class="badge">Polly, Graphite</span>
+                </div>
+                <div class="card-body">
+                    Models loop nests as points in a polyhedron to perform complex transformations (tiling, vectorization). deeply rooted in geometric abstractions similar to abstract interpretation.
+                </div>
+                <div class="card-footer">
+                    <strong>Type:</strong> Loop Transformation<br>
+                    <strong>Goal:</strong> Parallelism/Locality
+                </div>
+            </div>
+
+        </div>
+
     </div>
 
-    <h2>Industrial Static Analysis Tools</h2>
-    <p>These tools are used in production environments, particularly in safety-critical industries (avionics, automotive, medical), to prove the absence of runtime errors.</p>
-
-    <ul>
-        <li class="tool-card">
-            <div class="tool-header">
-                <span class="tool-name"><a href="https://www.absint.com/astree/index.htm">Astrée</a></span>
-                <span class="tool-type">Proprietary / Industrial</span>
-            </div>
-            <div class="tool-desc">
-                A static analyzer for C and C++ that proves the absence of runtime errors (division by zero, array out of bounds, etc.). It was originally developed at ENS Paris and is now commercially available. It is famous for verifying the primary flight control software of the Airbus A340 and A380 with zero false alarms.
-            </div>
-            <div class="meta-info"><strong>Target:</strong> Embedded C/C++ | <strong>Use Case:</strong> Avionics, Automotive, Space</div>
-        </li>
-
-        <li class="tool-card">
-            <div class="tool-header">
-                <span class="tool-name"><a href="https://frama-c.com/">Frama-C (Eva)</a></span>
-                <span class="tool-type">Open Source / Platform</span>
-            </div>
-            <div class="tool-desc">
-                A framework for modular analysis of C programs. Its <strong>Eva</strong> (Evolved Value Analysis) plugin uses abstract interpretation to compute variation domains for variables. It allows for formally verifying C code against ACSL (ANSI/ISO C Specification Language) specifications.
-            </div>
-            <div class="meta-info"><strong>Target:</strong> C | <strong>Developer:</strong> CEA-List, Inria</div>
-        </li>
-
-        <li class="tool-card">
-            <div class="tool-header">
-                <span class="tool-name"><a href="https://fbinfer.com/">Facebook Infer</a></span>
-                <span class="tool-type">Open Source / Industrial</span>
-            </div>
-            <div class="tool-desc">
-                A static analysis tool developed by Meta (Facebook) to detect bugs in mobile and server-side code. It uses a framework called <strong>Infer.AI</strong> to build abstract interpretation-based checkers (e.g., for buffer overruns and pulse analysis). It scales to huge codebases by using compositional analysis (bi-abduction).
-            </div>
-            <div class="meta-info"><strong>Target:</strong> Java, C++, Objective-C | <strong>Use Case:</strong> Mobile Apps, Web Services</div>
-        </li>
-
-        <li class="tool-card">
-            <div class="tool-header">
-                <span class="tool-name"><a href="https://www.mathworks.com/products/polyspace.html">Polyspace</a></span>
-                <span class="tool-type">Proprietary</span>
-            </div>
-            <div class="tool-desc">
-                One of the earliest commercial tools based on abstract interpretation. It verifies C, C++, and Ada code for runtime errors and coding standard compliance (MISRA). It uses color-coding to indicate safe, unsafe, dead, or unproven code sections.
-            </div>
-            <div class="meta-info"><strong>Target:</strong> C, C++, Ada | <strong>Developer:</strong> MathWorks</div>
-        </li>
-
-        <li class="tool-card">
-            <div class="tool-header">
-                <span class="tool-name"><a href="https://github.com/NASA-SW-VnV/ikos">IKOS (Inference Kernel for Open Static Analyzers)</a></span>
-                <span class="tool-type">Open Source (NASA)</span>
-            </div>
-            <div class="tool-desc">
-                A static analyzer based on the theory of Abstract Interpretation, developed by NASA. It is designed to be a generic and high-performance framework for building static analyzers. It is used to verify flight software.
-            </div>
-            <div class="meta-info"><strong>Target:</strong> C, C++ | <strong>Developer:</strong> NASA Ames Research Center</div>
-        </li>
-    </ul>
-
-    <h2>Compiler Phases & Optimizations</h2>
-    <p>Many standard compiler optimizations rely on data flow analysis techniques that are effectively instances of abstract interpretation.</p>
-
-    <ul>
-        <li class="tool-card">
-            <div class="tool-header">
-                <span class="tool-name">Strictness Analysis</span>
-                <span class="tool-type">Functional Compilers (GHC)</span>
-            </div>
-            <div class="tool-desc">
-                Used in lazy functional language compilers (like GHC for Haskell) to determine which arguments of a function are always evaluated. This allows the compiler to pass arguments by value instead of by thunk, significantly improving performance. This is classically formulated as a backward abstract interpretation.
-            </div>
-        </li>
-
-        <li class="tool-card">
-            <div class="tool-header">
-                <span class="tool-name">Value Range Propagation (VRP)</span>
-                <span class="tool-type">GCC, LLVM</span>
-            </div>
-            <div class="tool-desc">
-                Determines the possible range of values a variable can hold at a given point in the program. This allows for optimizations like removing redundant bounds checks, dead code elimination based on impossible branches, and reducing variable bit-widths. This is an application of Interval Analysis.
-            </div>
-        </li>
-
-        <li class="tool-card">
-            <div class="tool-header">
-                <span class="tool-name">Polyhedral Optimization</span>
-                <span class="tool-type">LLVM (Polly), GCC (Graphite)</span>
-            </div>
-            <div class="tool-desc">
-                A framework for loop nest optimization (tiling, parallelization, vectorization). It models loop iterations as points in a polyhedron (abstract domain) and transforms them. While distinct from classical data-flow analysis, it shares strong theoretical roots with abstract interpretation in its use of geometric abstractions.
-            </div>
-        </li>
-    </ul>
-
     <footer>
-        <p>This page serves as a research summary for the <a href="https://github.com/autogen/abstract-machines">abstract-machines</a> repository.</p>
+        <p>Research summary for the <a href="https://github.com/autogen/abstract-machines">abstract-machines</a> repository.</p>
     </footer>
+
 </body>
 </html>
